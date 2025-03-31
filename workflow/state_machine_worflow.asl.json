@@ -1,0 +1,61 @@
+{
+  "Comment": "An example of using Bedrock to chain prompts and their responses together.",
+  "StartAt": "Initialize",
+  "QueryLanguage": "JSONata",
+  "States": {
+    "Initialize": {
+      "Type": "Pass",
+      "Next": "Has Prompt?",
+      "Assign": {
+        "counter": "{% $count($states.input.prompts) %}",
+        "conversation_history": [""],
+        "input_prompts": "{% $reverse($states.input.prompts) %}"
+      }
+    },
+    "Has Prompt?": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Next": "Converse",
+          "Condition": "{% $counter > 0 %}"
+        }
+      ],
+      "Default": "Success"
+    },
+    "Converse": {
+      "Type": "Task",
+      "Arguments": {
+        "ModelId": "anthropic.claude-3-5-sonnet-20240620-v1:0",
+        "Messages": [
+          {
+            "Role": "user",
+            "Content": [
+              {
+                "Text": "{% $conversation_history[-1] & '.' & $input_prompts[$counter - 1] %}"
+              }
+            ]
+          }
+        ],
+        "System": [
+          {
+            "Text": "You are a social media content strategist"
+          }
+        ],
+        "InferenceConfig": {
+          "MaxTokens": 1000,
+          "Temperature": 0.5
+        }
+      },
+      "Resource": "arn:aws:states:::aws-sdk:bedrockruntime:converse",
+      "Next": "Has Prompt?",
+      "Assign": {
+        "conversation_history": "{% $append($conversation_history, $states.result.Output.Message.Content[0].Text) %}",
+        "counter": "{% $counter - 1 %}"
+      }
+    },
+    "Success": {
+      "Type": "Succeed",
+      "Output": "{% $join($conversation_history[[1..$count($conversation_history)]], '.') %}"
+    }
+  }
+}
