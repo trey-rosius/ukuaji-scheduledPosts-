@@ -14,11 +14,21 @@ import { LambdaTarget } from "aws-cdk-lib/aws-elasticloadbalancingv2-targets";
 import { CfnOutput, RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 import * as appsync from "aws-cdk-lib/aws-appsync";
-import { CfnDataSource, CfnGraphQLSchema } from "aws-cdk-lib/aws-appsync";
+import {
+  CfnDataSource,
+  CfnGraphQLSchema,
+  FunctionRuntime,
+} from "aws-cdk-lib/aws-appsync";
 
 import { readFileSync } from "fs";
 import { CfnStateMachine } from "aws-cdk-lib/aws-stepfunctions";
-import { PolicyStatement } from "aws-cdk-lib/aws-iam";
+import {
+  Effect,
+  PolicyDocument,
+  PolicyStatement,
+  Role,
+  ServicePrincipal,
+} from "aws-cdk-lib/aws-iam";
 
 export class SchedulePostsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -109,6 +119,9 @@ export class SchedulePostsStack extends cdk.Stack {
         defaultAuthorization: {
           authorizationType: appsync.AuthorizationType.API_KEY,
         },
+        additionalAuthorizationModes: [
+          { authorizationType: appsync.AuthorizationType.IAM },
+        ],
       },
       xrayEnabled: true,
       logConfig: {
@@ -180,6 +193,7 @@ export class SchedulePostsStack extends cdk.Stack {
       eventBusName: "ScheduledPostEventBus",
     });
 
+    const noneDs = scheduledPostGraphqlApi.addNoneDataSource("None");
     // The DynamoDB table for users
     const postsTable = new dynamodb.Table(this, "postsTable", {
       tableName: "postSchedulerTable",
@@ -189,6 +203,14 @@ export class SchedulePostsStack extends cdk.Stack {
       },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       stream: dynamodb.StreamViewType.NEW_IMAGE,
+    });
+
+    scheduledPostGraphqlApi.createResolver("generatedTextResponse", {
+      typeName: "Mutation",
+      fieldName: "generatedText",
+      runtime: FunctionRuntime.JS_1_0_0,
+      dataSource: noneDs,
+      code: appsync.Code.fromAsset("./resolvers/generatedText.js"),
     });
 
     new appsync.CfnResolver(this, "generateImagesResolver", {
@@ -313,6 +335,61 @@ export function response(ctx) {
         },
         inputTemplate: '{"postId": <$.dynamodb.NewImage.postId.S>}',
       },
+    });
+
+    const policyStatement = new PolicyStatement({
+      effect: Effect.ALLOW,
+      actions: ["appsync:GraphQL"],
+      resources: [`${scheduledPostGraphqlApi.arn}/types/Mutation/*`],
+    });
+
+    const ebRuleRole = new Role(this, "AppSyncEventBridgeRole", {
+      assumedBy: new ServicePrincipal("events.amazonaws.com"),
+      inlinePolicies: {
+        PolicyStatement: new PolicyDocument({
+          statements: [policyStatement],
+        }),
+      },
+    });
+
+    eventBus.grantPutEventsTo(stateMachineRole);
+
+    new events.CfnRule(this, "GeneratedTextResponse", {
+      eventBusName: eventBus.eventBusName,
+
+      eventPattern: {
+        source: ["generatedText.response"],
+        "detail-type": ["generated.text"],
+      },
+      targets: [
+        {
+          id: "GeneratedTextResponse",
+          arn: (
+            scheduledPostGraphqlApi.node.defaultChild as appsync.CfnGraphQLApi
+          ).attrGraphQlEndpointArn,
+          roleArn: ebRuleRole.roleArn,
+          appSyncParameters: {
+            graphQlOperation: `mutation GeneratedText($input:String!) { generatedText(input: $input) { text} }`,
+          },
+          inputTransformer: {
+            inputPathsMap: {
+              input: "$.detail.input",
+            },
+            inputTemplate: JSON.stringify({
+              input: "<input>",
+            }),
+          },
+        },
+      ],
+    });
+
+    // Output the API URL and API Key
+    new cdk.CfnOutput(this, "GraphQLAPIURL", {
+      value: scheduledPostGraphqlApi.graphqlUrl,
+    });
+
+    new cdk.CfnOutput(this, "GraphQLAPIKey", {
+      value: scheduledPostGraphqlApi.apiKey || "",
     });
   }
 }

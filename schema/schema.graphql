@@ -18,6 +18,12 @@ type Mutation {
   createPost(postInput: CreatePostInput!): Post! @aws_api_key
   updatePost(postInput: UpdatePostInput!): Post! @aws_cognito_user_pools
   deletePost(userId: String!, postId: String!): Boolean! @aws_api_key
+
+  generatedText(input: String!): generatedTextResponse! @aws_iam @aws_api_key
+}
+
+type generatedTextResponse @aws_iam @aws_api_key {
+  text: String!
 }
 
 type User @aws_api_key {
@@ -92,6 +98,9 @@ type Post @aws_api_key {
 
 type Subscription {
   createdPost: Post @aws_subscribe(mutations: ["createPost"])
+  onGeneratedTextResponse: generatedTextResponse
+    @aws_api_key
+    @aws_subscribe(mutations: ["generatedText"])
 }
 type PostsResult @aws_api_key {
   items: [Post!]!
