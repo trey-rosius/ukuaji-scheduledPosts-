@@ -48,6 +48,9 @@ export class SchedulePostsStack extends cdk.Stack {
     const bedrockRole = new iam.Role(this, "BedRockRole", {
       assumedBy: new iam.ServicePrincipal("appsync.amazonaws.com"),
     });
+    const scheduleRole = new iam.Role(this, "scheduleRole", {
+      assumedBy: new iam.ServicePrincipal("scheduler.amazonaws.com"),
+    });
 
     bedrockRole.addToPrincipalPolicy(
       new PolicyStatement({
@@ -83,16 +86,22 @@ export class SchedulePostsStack extends cdk.Stack {
       handler: "handler",
       runtime: cdk.aws_lambda.Runtime.NODEJS_20_X,
       memorySize: 256,
-      environment: {
-        STATE_MACHINE_ARN: generatePostStateMachine.attrArn,
-        ...envVariables,
-      },
+
       logRetention: cdk.aws_logs.RetentionDays.ONE_WEEK,
       tracing: cdk.aws_lambda.Tracing.ACTIVE,
       bundling: {
         minify: true,
       },
     };
+
+    const sendPostsFunction = new NodejsFunction(this, "sendPostsFunction", {
+      entry: "./src/sendPosts.ts",
+      ...functionSettings,
+      environment: {
+        ...envVariables,
+      },
+    });
+
     const scheduledPostGraphqlApi = new appsync.GraphqlApi(this, "Api", {
       name: "scheduledPostApp",
       definition: appsync.Definition.fromFile("schema/schema.graphql"),
@@ -119,6 +128,39 @@ export class SchedulePostsStack extends cdk.Stack {
       {
         entry: "./src/startStateMachine.ts",
         ...functionSettings,
+        environment: {
+          ...envVariables,
+          STATE_MACHINE_ARN: generatePostStateMachine.attrArn,
+        },
+      }
+    );
+
+    sendPostsFunction.grantInvoke(scheduleRole);
+    // Schedule group for all the user schedules
+    const postscheduleGroup = new CfnScheduleGroup(this, "PostScheduleGroup", {
+      name: "PostScheduleGroup",
+    });
+
+    const schedulePostsFunction = new NodejsFunction(
+      this,
+      "schedulePostsFunction",
+      {
+        entry: "./src/schedulePosts.ts",
+        ...functionSettings,
+        environment: {
+          ...envVariables,
+          SCHEDULE_GROUP_NAME: postscheduleGroup.name || "",
+          SEND_POST_SERVICE_ARN: sendPostsFunction.functionArn,
+          SCHEDULE_ROLE_ARN: scheduleRole.roleArn,
+        },
+        initialPolicy: [
+          // Give lambda permission to create group, schedule and pass IAM role to the scheduler
+          new iam.PolicyStatement({
+            // actions: ['scheduler:CreateSchedule', 'iam:PassRole', 'scheduler:CreateScheduleGroup'],
+            actions: ["scheduler:CreateSchedule", "iam:PassRole"],
+            resources: ["*"],
+          }),
+        ],
       }
     );
 
@@ -133,11 +175,16 @@ export class SchedulePostsStack extends cdk.Stack {
         resources: [generatePostStateMachine.attrArn],
       })
     );
+    // Event Bus used for application
+    const eventBus = new events.EventBus(this, "ScheduledPostEventBus", {
+      eventBusName: "ScheduledPostEventBus",
+    });
+
     // The DynamoDB table for users
-    const usersTable = new dynamodb.Table(this, "postsTable", {
+    const postsTable = new dynamodb.Table(this, "postsTable", {
       tableName: "postSchedulerTable",
       partitionKey: {
-        name: "userId",
+        name: "postId",
         type: dynamodb.AttributeType.STRING,
       },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
@@ -204,5 +251,68 @@ export function response(ctx) {
         ),
         runtime: appsync.FunctionRuntime.JS_1_0_0,
       });
+
+    // CloudWatch Log group to catch all events through this event bus, for debugging.
+    new events.Rule(this, "catchAllLogRule", {
+      ruleName: "catch-all",
+      eventBus: eventBus,
+      eventPattern: {
+        source: events.Match.prefix(""),
+      },
+      targets: [
+        new targets.CloudWatchLogGroup(
+          new logs.LogGroup(this, "ScheduledPostsBusAllEvents", {
+            logGroupName: "/aws/events/ScheduledPostsEventBus/logs",
+            removalPolicy: cdk.RemovalPolicy.DESTROY,
+          })
+        ),
+      ],
+    });
+
+    // Create a rule. Listen for event and trigger lambda to create schedule
+    new events.Rule(this, "create-post-schedules", {
+      ruleName: "create-post-schedules",
+      eventBus: eventBus,
+      eventPattern: {
+        source: events.Match.exactString("schedule.posts"),
+        detailType: events.Match.exactString("SchedulePostCreated"),
+      },
+      targets: [new targets.LambdaFunction(schedulePostsFunction)],
+    });
+
+    const pipeRole = new iam.Role(this, "ScheduledPostsPipeRole", {
+      assumedBy: new iam.ServicePrincipal("pipes.amazonaws.com"),
+    });
+
+    postsTable.grantReadWriteData(schedulePostsFunction);
+    postsTable.grantStreamRead(pipeRole);
+    eventBus.grantPutEventsTo(pipeRole);
+
+    // Create EventBridge Pipe, to connect new DynamoDB items to EventBridge.
+    new pipes.CfnPipe(this, "schedulepostpipe", {
+      roleArn: pipeRole.roleArn,
+      source: postsTable.tableStreamArn!,
+      sourceParameters: {
+        dynamoDbStreamParameters: {
+          startingPosition: "LATEST",
+          batchSize: 3,
+        },
+        filterCriteria: {
+          filters: [
+            {
+              pattern: '{"eventName" : ["INSERT"] }',
+            },
+          ],
+        },
+      },
+      target: eventBus.eventBusArn,
+      targetParameters: {
+        eventBridgeEventBusParameters: {
+          detailType: "SchedulePostCreated",
+          source: "schedule.posts",
+        },
+        inputTemplate: '{"postId": <$.dynamodb.NewImage.postId.S>}',
+      },
+    });
   }
 }
