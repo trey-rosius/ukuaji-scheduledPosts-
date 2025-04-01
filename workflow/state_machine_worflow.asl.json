@@ -20,7 +20,29 @@
           "Condition": "{% $counter > 0 %}"
         }
       ],
-      "Default": "Success"
+      "Default": "Pass"
+    },
+    "Pass": {
+      "Type": "Pass",
+      "Next": "EventBridge PutEvents",
+      "Output": "{% $join($conversation_history[[1..$count($conversation_history)]], '.') %}"
+    },
+    "EventBridge PutEvents": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Arguments": {
+        "Entries": [
+          {
+            "Detail": {
+              "input": "{% $join($conversation_history[[1..$count($conversation_history)]], '.') %}"
+            },
+            "DetailType": "generated.text",
+            "EventBusName": "ScheduledPostEventBus",
+            "Source": "generatedText.response"
+          }
+        ]
+      },
+      "Next": "Success"
     },
     "Converse": {
       "Type": "Task",
