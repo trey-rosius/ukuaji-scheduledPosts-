@@ -9,6 +9,22 @@ type Query {
   getAllPosts(limit: Int!, nextToken: String): PostsResult! @aws_api_key
   getUserAccount(id: String!): User! @aws_api_key
   generateImages(input: String!): [String!]! @aws_api_key
+  imageGuidedGeneration(input: ImageGuidedGenerationInput!): [String!]!
+    @aws_api_key
+  replaceImageBackground(input: ReplaceImageBackgroundInput!): [String!]!
+    @aws_api_key
+}
+input ImageGuidedGenerationInput @aws_api_key {
+  prompt: String!
+  conditionImage: String!
+  numOfImages: Int!
+}
+
+input ReplaceImageBackgroundInput @aws_api_key {
+  prompt: String!
+  image: String!
+  numOfImages: Int!
+  maskPrompt: String!
 }
 
 type Mutation {
