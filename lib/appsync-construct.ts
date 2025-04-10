@@ -135,6 +135,7 @@ export function request(ctx) {
       imageGenerationConfig: {
         numberOfImages: 1,
         height: 1024,
+        quality: "standard",
         width: 720,
         cfgScale: 8,
         seed: 42,

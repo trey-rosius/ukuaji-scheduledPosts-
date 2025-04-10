@@ -8,11 +8,14 @@ export const handler: AppSyncResolverHandler<
   Boolean
 > = async (event, _context) => {
   // You can customize your input; here we use a fixed payload.
-
-  const input = JSON.stringify({ prompts: event.arguments.input.prompts });
+  const prompt = [
+    `Write a short(not more than 400 letters) and insightful social media post on ${event.arguments.input.prompts}`,
+    "Generate 5 popular hashtags for the above post.Respond only with the hashtags and nothing else.",
+  ];
+  const input = JSON.stringify({ prompts: prompt });
   logger.info(`prompt is ${JSON.stringify(event.arguments)}`);
 
-  logger.info(`step functions input is ${input}`);
+  logger.info(`step functions input is ${prompt}`);
   const stateMachineArn = process.env.STATE_MACHINE_ARN;
 
   if (!stateMachineArn) {
