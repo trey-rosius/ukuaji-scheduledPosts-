@@ -50,16 +50,17 @@ export class SchedulePostsStack extends cdk.Stack {
       scheduleGroupName: "PostScheduleGroup",
       removalPolicy: RemovalPolicy.DESTROY,
     });
-    const appSyncConstruct = new AppSyncConstruct(this, "AppSyncConstruct", {
-      scheduledRole: scheduleRole,
-      postScheduledGroupName: postscheduleGroup.scheduleGroupName,
-      generatePostStateMachine: stateMachineConstruct.generatePostStateMachine,
-    });
-
     // Event Bus used for application
     const eventBus = new events.EventBus(this, "ScheduledPostEventBus", {
       eventBusName: "ScheduledPostEventBus",
     });
+    const appSyncConstruct = new AppSyncConstruct(this, "AppSyncConstruct", {
+      scheduledRole: scheduleRole,
+      postScheduledGroupName: postscheduleGroup.scheduleGroupName,
+      generatePostStateMachine: stateMachineConstruct.generatePostStateMachine,
+      eventbus: eventBus,
+    });
+
     const pipeRole = new Role(this, "ScheduledPostsPipeRole", {
       assumedBy: new ServicePrincipal("pipes.amazonaws.com"),
     });
@@ -133,6 +134,39 @@ export class SchedulePostsStack extends cdk.Stack {
           roleArn: ebRuleRole.roleArn,
           appSyncParameters: {
             graphQlOperation: `mutation GeneratedText($input:String!) { generatedText(input: $input) { text} }`,
+          },
+          inputTransformer: {
+            inputPathsMap: {
+              input: "$.detail.input",
+            },
+            inputTemplate: JSON.stringify({
+              input: "<input>",
+            }),
+          },
+        },
+      ],
+    });
+
+    new events.CfnRule(this, "GeneratedImagesResponse", {
+      eventBusName: eventBus.eventBusName,
+
+      eventPattern: {
+        source: ["generatedImages.response"],
+        "detail-type": ["generated.images"],
+      },
+      targets: [
+        {
+          id: "GeneratedImagesResponse",
+          arn: (
+            appSyncConstruct.scheduledPostGraphqlApi.node
+              .defaultChild as appsync.CfnGraphQLApi
+          ).attrGraphQlEndpointArn,
+          roleArn: ebRuleRole.roleArn,
+          appSyncParameters: {
+            graphQlOperation: `mutation GenerateImagesResponse($input:[String!]!) { generateImagesResponse(input: $input){
+             base64Images
+            
+            } }`,
           },
           inputTransformer: {
             inputPathsMap: {

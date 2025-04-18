@@ -1,5 +1,2 @@
-moviepy>=2.1.2
 boto3>=1.33.8
-ipython
-Pillow>=10.1.0
-opencv-python-headless>=4.11.0.86
+aws-lambda-powertools[tracer]

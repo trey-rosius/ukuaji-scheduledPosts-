@@ -36,8 +36,16 @@ type Mutation {
   deletePost(userId: String!, postId: String!): Boolean! @aws_api_key
 
   generatedText(input: String!): GeneratedTextResponse! @aws_iam @aws_api_key
+
+  generateImagesWithLambda(input: String!): Boolean @aws_api_key
+  generateImagesResponse(input: [String!]!): GeneratedImageResponse!
+    @aws_iam
+    @aws_api_key
 }
 
+type GeneratedImageResponse @aws_iam @aws_api_key {
+  base64Images: [String]!
+}
 type GeneratedTextResponse @aws_iam @aws_api_key {
   text: String!
 }
@@ -117,6 +125,10 @@ type Subscription {
   onGeneratedTextResponse: GeneratedTextResponse
     @aws_api_key
     @aws_subscribe(mutations: ["generatedText"])
+
+  onGeneratedImagesResponse: GeneratedImageResponse
+    @aws_api_key
+    @aws_subscribe(mutations: ["generateImagesResponse"])
 }
 type PostsResult @aws_api_key {
   items: [Post!]!

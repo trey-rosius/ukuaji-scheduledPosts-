@@ -23,12 +23,16 @@ import {
 } from "aws-cdk-lib/aws-iam";
 import path = require("path");
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+
+import { PythonFunction } from "@aws-cdk/aws-lambda-python-alpha";
 import { CfnStateMachine } from "aws-cdk-lib/aws-stepfunctions";
+import { Runtime } from "aws-cdk-lib/aws-lambda";
 
 type AppSyncConstructProps = {
   scheduledRole: Role;
   postScheduledGroupName: string;
   generatePostStateMachine: CfnStateMachine;
+  eventbus: EventBus;
 };
 
 export class AppSyncConstruct extends Construct {
@@ -37,8 +41,12 @@ export class AppSyncConstruct extends Construct {
   constructor(scope: Construct, id: string, props: AppSyncConstructProps) {
     super(scope, id);
 
-    const { scheduledRole, postScheduledGroupName, generatePostStateMachine } =
-      props;
+    const {
+      scheduledRole,
+      postScheduledGroupName,
+      generatePostStateMachine,
+      eventbus,
+    } = props;
     const envVariables = {
       // AWS_ACCOUNT_ID: Stack.of(this).account,
       POWERTOOLS_SERVICE_NAME: "scheduled-posts",
@@ -84,6 +92,14 @@ export class AppSyncConstruct extends Construct {
       runtime: FunctionRuntime.JS_1_0_0,
       dataSource: noneDs,
       code: Code.fromAsset("./resolvers/generatedText.js"),
+    });
+
+    this.scheduledPostGraphqlApi.createResolver("generatedImagesResponse", {
+      typeName: "Mutation",
+      fieldName: "generateImagesResponse",
+      runtime: FunctionRuntime.JS_1_0_0,
+      dataSource: noneDs,
+      code: Code.fromAsset("./resolvers/generateImagesResponse.js"),
     });
     const bedrockRole = new Role(this, "BedRockRole", {
       assumedBy: new ServicePrincipal("appsync.amazonaws.com"),
@@ -264,6 +280,38 @@ export function response(ctx) {
       },
     });
 
+    const generateImagesLambdaHandler = new PythonFunction(
+      this,
+      "generateImagesFunction",
+      {
+        entry: "./src/py_lambda/",
+        runtime: Runtime.PYTHON_3_11,
+        handler: "generate_images_handler",
+        functionName: "generateImagesLambdaHandler",
+        timeout: cdk.Duration.seconds(500),
+        environment: {
+          ...envVariables,
+          EVENT_BUS_NAME: eventbus.eventBusName,
+        },
+
+        bundling: {
+          // translates to `rsync --exclude='.venv'`
+          assetExcludes: [".venv"],
+        },
+
+        initialPolicy: [
+          // Give lambda permission to create group, schedule and pass IAM role to the scheduler
+          new PolicyStatement({
+            actions: ["bedrock:InvokeModel", "events:PutEvents"],
+            resources: [
+              eventbus.eventBusArn,
+              "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-canvas-v1:0",
+            ],
+          }),
+        ],
+      }
+    );
+
     const startWorkflowFunction = new NodejsFunction(
       this,
       "startStepFunctionsWorkflow",
@@ -312,7 +360,20 @@ export function response(ctx) {
         resources: [generatePostStateMachine.attrArn],
       })
     );
-    const lambdaDatasource = this.scheduledPostGraphqlApi
+
+    this.scheduledPostGraphqlApi
+      .addLambdaDataSource(
+        "generateImagesLambdaDatasource",
+        generateImagesLambdaHandler
+      )
+      .createResolver("generateImagesLambdaResolver", {
+        typeName: "Mutation",
+        fieldName: "generateImagesWithLambda",
+        code: Code.fromAsset(path.join(__dirname, "../invoke/invoke.js")),
+        runtime: FunctionRuntime.JS_1_0_0,
+      });
+
+    this.scheduledPostGraphqlApi
       .addLambdaDataSource(
         "startStateMachineLAmbdaDatasource",
         startWorkflowFunction
