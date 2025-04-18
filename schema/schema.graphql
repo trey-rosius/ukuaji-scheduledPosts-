@@ -96,18 +96,39 @@ input AddressInput @aws_cognito_user_pools {
   country: String!
 }
 
-input CreatePostInput @aws_cognito_user_pools {
+input CreatePostInput @aws_api_key {
   content: String!
+  imageUrls: [String!]
   entity: String!
   userId: String!
-  imageUrl: String
+  schedule: PostScheduleInput!
+  schedulePost: Boolean!
 }
 
-input UpdatePostInput @aws_cognito_user_pools {
+input PostScheduleInput @aws_api_key {
+  minute: Int!
+  second: Int!
+  hour: Int!
+  day: Int!
+  month: Int!
+  year: Int!
+}
+type PostSchedule @aws_api_key {
+  minute: Int!
+  second: Int!
+  hour: Int!
+  day: Int!
+  month: Int!
+  year: Int!
+}
+
+input UpdatePostInput @aws_api_key {
   id: String!
   userId: String
   content: String
-  imageUrl: String
+  imageUrls: [String!]
+  schedule: PostScheduleInput!
+  schedulePost: Boolean!
 }
 
 type Post @aws_api_key {
@@ -115,7 +136,9 @@ type Post @aws_api_key {
   userId: String!
   content: String!
   entity: String!
-  imageUrl: String
+  imageUrls: [String!]
+  schedule: PostSchedule!
+  schedulePost: Boolean!
   createdOn: AWSTimestamp!
   updatedOn: AWSTimestamp
 }

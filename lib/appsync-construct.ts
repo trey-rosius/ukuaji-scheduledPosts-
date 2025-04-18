@@ -29,6 +29,7 @@ import { CfnStateMachine } from "aws-cdk-lib/aws-stepfunctions";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 
 type AppSyncConstructProps = {
+  postsTable: ITable;
   scheduledRole: Role;
   postScheduledGroupName: string;
   generatePostStateMachine: CfnStateMachine;
@@ -46,6 +47,7 @@ export class AppSyncConstruct extends Construct {
       postScheduledGroupName,
       generatePostStateMachine,
       eventbus,
+      postsTable,
     } = props;
     const envVariables = {
       // AWS_ACCOUNT_ID: Stack.of(this).account,
@@ -166,12 +168,11 @@ export function response(ctx) {
   return ctx.result.images;
 }`,
     }).addDependency(bedrock_datasource);
-
+    /*
     new CfnResolver(this, "imageGuidedGenerationResolver", {
       apiId: this.scheduledPostGraphqlApi.apiId,
       fieldName: "imageGuidedGeneration",
       typeName: "Query",
-
       dataSourceName: bedrock_datasource.name,
       runtime: {
         name: "APPSYNC_JS",
@@ -218,7 +219,7 @@ export function response(ctx) {
        
        `,
     }).addDependency(bedrock_datasource);
-
+*/
     new CfnResolver(this, "replaceImageBackgroundInputResolver", {
       apiId: this.scheduledPostGraphqlApi.apiId,
       fieldName: "replaceImageBackground",
@@ -326,6 +327,7 @@ export function response(ctx) {
     );
 
     sendPostsFunction.grantInvoke(scheduledRole);
+
     this.schedulePostsFunction = new NodejsFunction(
       this,
       "schedulePostsFunction",
@@ -360,6 +362,16 @@ export function response(ctx) {
         resources: [generatePostStateMachine.attrArn],
       })
     );
+    this.scheduledPostGraphqlApi
+      .addDynamoDbDataSource("createPostDatasource", postsTable)
+      .createResolver("createPostResolver", {
+        typeName: "Mutation",
+        fieldName: "createPost",
+        code: Code.fromAsset(
+          path.join(__dirname, "../resolvers/posts/createPosts.js")
+        ),
+        runtime: FunctionRuntime.JS_1_0_0,
+      });
 
     this.scheduledPostGraphqlApi
       .addLambdaDataSource(
@@ -373,9 +385,11 @@ export function response(ctx) {
         runtime: FunctionRuntime.JS_1_0_0,
       });
 
+    //Create post
+
     this.scheduledPostGraphqlApi
       .addLambdaDataSource(
-        "startStateMachineLAmbdaDatasource",
+        "startStateMachineLambdaDatasource",
         startWorkflowFunction
       )
       .createResolver("startStateMachineResolver", {

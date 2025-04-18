@@ -1,6 +1,9 @@
 import { logger, metrics, tracer } from "../src/powertools/utilities";
-import { Handler } from "aws-lambda";
 
+import {
+  EVENTBRIDGE,
+  extractDataFromEnvelope,
+} from "@aws-lambda-powertools/jmespath/envelopes";
 import {
   SchedulerClient,
   CreateScheduleCommand,
@@ -8,6 +11,31 @@ import {
   ActionAfterCompletion,
 } from "@aws-sdk/client-scheduler";
 import { addMinutes, addDays, addMonths } from "date-fns";
+import type { EventBridgeEvent } from "aws-lambda";
+type DynamoDBPost = {
+  id: { S: string };
+  content: { S: string };
+  createdOn: { N: string }; // Numbers are passed as strings in DynamoDB
+  entity: { S: string };
+  imageUrls?: { L: { S: string }[] };
+  schedulePost: { BOOL: boolean };
+  updatedOn: { NULL: true } | { N: string };
+  userId: { S: string };
+  schedule?: {
+    M: {
+      day: { N: string };
+      hour: { N: string };
+      minute: { N: string };
+      month: { N: string };
+      second: { N: string };
+      year: { N: string };
+    };
+  };
+};
+
+type PostBody = {
+  posts: DynamoDBPost;
+};
 
 const client = new SchedulerClient({});
 const createSchedule = ({ name, payload, description, time }: any) => {
@@ -29,15 +57,22 @@ const createSchedule = ({ name, payload, description, time }: any) => {
     })
   );
 };
-export const handler: Handler = async (event, context) => {
+export const handler = async (
+  event: EventBridgeEvent<"SchedulePostCreated", PostBody>
+) => {
   logger.info("This is the schedule post function");
-  const postId = event.detail.postId;
-  logger.info(`post id is ${postId}`);
+  logger.info(`records ${JSON.stringify(event.detail.posts)}`);
+
+  const records = extractDataFromEnvelope<PostBody>(event, EVENTBRIDGE);
+  logger.info(`records are ${JSON.stringify(records)}`);
+
+  const id = records.posts.id.S;
+  logger.info(`post id is ${JSON.stringify(records.posts.id.S)}`);
   // Schedule for welcome email 2 minutes after sign up
   await createSchedule({
-    name: `${postId}-24hr-after-post-create`,
-    description: `New post scheduled with id:${postId}`,
+    name: `${id}-24hr-after-post-create`,
+    description: `New post scheduled with id:${id}`,
     payload: { ...event.detail, context: "24hr" },
-    time: `at(${addMinutes(new Date(), 2).toISOString().split(".")[0]})`,
+    time: `at(${addMinutes(new Date(), 2000).toISOString().split(".")[0]})`,
   });
 };

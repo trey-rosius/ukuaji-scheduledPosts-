@@ -55,6 +55,7 @@ export class SchedulePostsStack extends cdk.Stack {
       eventBusName: "ScheduledPostEventBus",
     });
     const appSyncConstruct = new AppSyncConstruct(this, "AppSyncConstruct", {
+      postsTable: dataConstruct.postsTable,
       scheduledRole: scheduleRole,
       postScheduledGroupName: postscheduleGroup.scheduleGroupName,
       generatePostStateMachine: stateMachineConstruct.generatePostStateMachine,
@@ -83,7 +84,16 @@ export class SchedulePostsStack extends cdk.Stack {
         filterCriteria: {
           filters: [
             {
-              pattern: '{"eventName" : ["INSERT"] }',
+              pattern: JSON.stringify({
+                eventName: ["INSERT"],
+                dynamodb: {
+                  NewImage: {
+                    entity: {
+                      S: ["POST"],
+                    },
+                  },
+                },
+              }),
             },
           ],
         },
@@ -94,7 +104,7 @@ export class SchedulePostsStack extends cdk.Stack {
           detailType: "SchedulePostCreated",
           source: "schedule.posts",
         },
-        inputTemplate: '{"postId": <$.dynamodb.NewImage.postId.S>}',
+        inputTemplate: '{"posts": <$.dynamodb.NewImage>}',
       },
     });
 
