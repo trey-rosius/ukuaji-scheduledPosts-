@@ -21,16 +21,19 @@ import {
   Role,
   ServicePrincipal,
 } from "aws-cdk-lib/aws-iam";
+
+import { bedrock } from "@cdklabs/generative-ai-cdk-constructs";
 import path = require("path");
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 
-import { PythonFunction } from "@aws-cdk/aws-lambda-python-alpha";
 import { CfnStateMachine } from "aws-cdk-lib/aws-stepfunctions";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
+import { KnowledgeBaseBase } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock";
 
 type AppSyncConstructProps = {
   postsTable: ITable;
   scheduledRole: Role;
+  knowledgeBase: KnowledgeBaseBase;
   postScheduledGroupName: string;
   generatePostStateMachine: CfnStateMachine;
   eventbus: EventBus;
@@ -48,6 +51,7 @@ export class AppSyncConstruct extends Construct {
       generatePostStateMachine,
       eventbus,
       postsTable,
+      knowledgeBase,
     } = props;
     const envVariables = {
       // AWS_ACCOUNT_ID: Stack.of(this).account,
@@ -86,6 +90,15 @@ export class AppSyncConstruct extends Construct {
       },
     });
 
+    this.scheduledPostGraphqlApi.addEnvironmentVariable(
+      "KNOWLEDGEBASE_ID",
+      knowledgeBase.knowledgeBaseId
+    );
+    this.scheduledPostGraphqlApi.addEnvironmentVariable(
+      "FOUNDATION_MODEL_ARN",
+      "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0"
+    );
+
     const noneDs = this.scheduledPostGraphqlApi.addNoneDataSource("None");
 
     this.scheduledPostGraphqlApi.createResolver("generatedTextResponse", {
@@ -106,6 +119,30 @@ export class AppSyncConstruct extends Construct {
     const bedrockRole = new Role(this, "BedRockRole", {
       assumedBy: new ServicePrincipal("appsync.amazonaws.com"),
     });
+    const bedrockRetrieveAndGenerateDS =
+      this.scheduledPostGraphqlApi.addHttpDataSource(
+        "bedrockRetrieveAndGenerateDS",
+        `https://bedrock-agent-runtime.us-east-1.amazonaws.com`,
+        {
+          authorizationConfig: {
+            signingRegion: "us-east-1",
+            signingServiceName: "bedrock",
+          },
+        }
+      );
+    bedrockRetrieveAndGenerateDS.grantPrincipal.addToPrincipalPolicy(
+      new PolicyStatement({
+        resources: [
+          "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0",
+          `arn:aws:bedrock:us-east-1:132260253285:knowledge-base/${knowledgeBase.knowledgeBaseId}`,
+        ],
+        actions: [
+          "bedrock:InvokeModel",
+          "bedrock:Retrieve",
+          "bedrock:RetrieveAndGenerate",
+        ],
+      })
+    );
 
     bedrockRole.addToPrincipalPolicy(
       new PolicyStatement({
@@ -281,37 +318,21 @@ export function response(ctx) {
       },
     });
 
-    const generateImagesLambdaHandler = new PythonFunction(
-      this,
-      "generateImagesFunction",
-      {
-        entry: "./src/py_lambda/",
-        runtime: Runtime.PYTHON_3_11,
-        handler: "generate_images_handler",
-        functionName: "generateImagesLambdaHandler",
-        timeout: cdk.Duration.seconds(500),
-        environment: {
-          ...envVariables,
-          EVENT_BUS_NAME: eventbus.eventBusName,
-        },
+    //* Init AppSync resolvers
+    const retrieveAndGenerateResponseResolver =
+      this.scheduledPostGraphqlApi.createResolver(
+        "retrieveAndGenerateResponseResolver",
 
-        bundling: {
-          // translates to `rsync --exclude='.venv'`
-          assetExcludes: [".venv"],
-        },
-
-        initialPolicy: [
-          // Give lambda permission to create group, schedule and pass IAM role to the scheduler
-          new PolicyStatement({
-            actions: ["bedrock:InvokeModel", "events:PutEvents"],
-            resources: [
-              eventbus.eventBusArn,
-              "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-canvas-v1:0",
-            ],
-          }),
-        ],
-      }
-    );
+        {
+          typeName: "Mutation",
+          fieldName: "retrieveAndGenerateResponse",
+          dataSource: bedrockRetrieveAndGenerateDS,
+          runtime: FunctionRuntime.JS_1_0_0,
+          code: Code.fromAsset(
+            path.join(__dirname, "../resolvers/retrieveAndGenerateResponse.js")
+          ),
+        }
+      );
 
     const startWorkflowFunction = new NodejsFunction(
       this,
@@ -362,6 +383,7 @@ export function response(ctx) {
         resources: [generatePostStateMachine.attrArn],
       })
     );
+
     this.scheduledPostGraphqlApi
       .addDynamoDbDataSource("createPostDatasource", postsTable)
       .createResolver("createPostResolver", {
@@ -370,18 +392,6 @@ export function response(ctx) {
         code: Code.fromAsset(
           path.join(__dirname, "../resolvers/posts/createPosts.js")
         ),
-        runtime: FunctionRuntime.JS_1_0_0,
-      });
-
-    this.scheduledPostGraphqlApi
-      .addLambdaDataSource(
-        "generateImagesLambdaDatasource",
-        generateImagesLambdaHandler
-      )
-      .createResolver("generateImagesLambdaResolver", {
-        typeName: "Mutation",
-        fieldName: "generateImagesWithLambda",
-        code: Code.fromAsset(path.join(__dirname, "../invoke/invoke.js")),
         runtime: FunctionRuntime.JS_1_0_0,
       });
 

@@ -73,6 +73,6 @@ export const handler = async (
     name: `${id}-24hr-after-post-create`,
     description: `New post scheduled with id:${id}`,
     payload: { ...event.detail, context: "24hr" },
-    time: `at(${addMinutes(new Date(), 2000).toISOString().split(".")[0]})`,
+    time: `at(${addMinutes(new Date(), 2).toISOString().split(".")[0]})`,
   });
 };

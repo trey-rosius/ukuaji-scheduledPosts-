@@ -34,6 +34,8 @@ type Mutation {
   createPost(postInput: CreatePostInput!): Post! @aws_api_key
   updatePost(postInput: UpdatePostInput!): Post! @aws_cognito_user_pools
   deletePost(userId: String!, postId: String!): Boolean! @aws_api_key
+  retrieveAndGenerateResponse(input: RetrieveAndGenerateResponseInput!): String
+    @aws_api_key
 
   generatedText(input: String!): GeneratedTextResponse! @aws_iam @aws_api_key
 
@@ -41,6 +43,11 @@ type Mutation {
   generateImagesResponse(input: [String!]!): GeneratedImageResponse!
     @aws_iam
     @aws_api_key
+}
+
+input RetrieveAndGenerateResponseInput @aws_api_key {
+  text: String!
+  sessionId: String
 }
 
 type GeneratedImageResponse @aws_iam @aws_api_key {

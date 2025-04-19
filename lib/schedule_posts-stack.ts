@@ -32,6 +32,7 @@ import {
 import { DataConstruct } from "./data-construct";
 import { StateMachineConstruct } from "./statemachine-construct";
 import { AppSyncConstruct } from "./appsync-construct";
+import { knowledgeBaseConstruct } from "./knowledgebase-construct";
 
 export class SchedulePostsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -54,9 +55,15 @@ export class SchedulePostsStack extends cdk.Stack {
     const eventBus = new events.EventBus(this, "ScheduledPostEventBus", {
       eventBusName: "ScheduledPostEventBus",
     });
+    const kbConstruct = new knowledgeBaseConstruct(
+      this,
+      "KnowledgeBaseConstruct",
+      {}
+    );
     const appSyncConstruct = new AppSyncConstruct(this, "AppSyncConstruct", {
       postsTable: dataConstruct.postsTable,
       scheduledRole: scheduleRole,
+      knowledgeBase: kbConstruct.knowledgeBase,
       postScheduledGroupName: postscheduleGroup.scheduleGroupName,
       generatePostStateMachine: stateMachineConstruct.generatePostStateMachine,
       eventbus: eventBus,
