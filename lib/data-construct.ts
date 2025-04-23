@@ -59,5 +59,25 @@ export class DataConstruct extends Construct {
 
       projectionType: ProjectionType.ALL,
     });
+
+    this.postsTable.addGlobalSecondaryIndex({
+      indexName: "getUserByEmail",
+      partitionKey: { name: "email", type: AttributeType.STRING },
+      projectionType: ProjectionType.INCLUDE,
+      nonKeyAttributes: [
+        "PK",
+        "SK",
+        "id",
+        "username",
+        "about",
+        "profilePicUrl",
+        "profilePicKey",
+        "userType",
+        "address",
+        "firstName",
+        "lastName",
+        "createdOn",
+      ],
+    });
   }
 }

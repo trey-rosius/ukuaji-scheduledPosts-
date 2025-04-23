@@ -29,6 +29,12 @@ import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { CfnStateMachine } from "aws-cdk-lib/aws-stepfunctions";
 import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { KnowledgeBaseBase } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock";
+import {
+  AccountRecovery,
+  UserPool,
+  UserPoolClient,
+  VerificationEmailStyle,
+} from "aws-cdk-lib/aws-cognito";
 
 type AppSyncConstructProps = {
   postsTable: ITable;
@@ -38,6 +44,10 @@ type AppSyncConstructProps = {
   generatePostStateMachine: CfnStateMachine;
   eventbus: EventBus;
 };
+
+const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+const CURRENT_DATE = new Date();
+const KEY_EXPIRATION_DATE = new Date(CURRENT_DATE.getTime() + SEVEN_DAYS);
 
 export class AppSyncConstruct extends Construct {
   public readonly schedulePostsFunction: NodejsFunction;
@@ -73,14 +83,55 @@ export class AppSyncConstruct extends Construct {
         minify: true,
       },
     };
+
+    const userPool: UserPool = new UserPool(
+      this,
+      "scheduler-post-api-userpool",
+      {
+        selfSignUpEnabled: true,
+        accountRecovery: AccountRecovery.PHONE_AND_EMAIL,
+        userVerification: {
+          emailStyle: VerificationEmailStyle.CODE,
+        },
+        autoVerify: {
+          email: true,
+        },
+        standardAttributes: {
+          email: {
+            required: true,
+            mutable: true,
+          },
+        },
+      }
+    );
+
+    const userPoolClient: UserPoolClient = new UserPoolClient(
+      this,
+      "SchedulerPostUserPoolClient",
+      {
+        userPool,
+      }
+    );
+
     this.scheduledPostGraphqlApi = new GraphqlApi(this, "Api", {
       name: "scheduledPostApp",
       definition: Definition.fromFile("schema/schema.graphql"),
       authorizationConfig: {
         defaultAuthorization: {
           authorizationType: AuthorizationType.API_KEY,
+          apiKeyConfig: {
+            name: "default",
+            description: "default auth mode",
+            expires: cdk.Expiration.atDate(KEY_EXPIRATION_DATE),
+          },
         },
         additionalAuthorizationModes: [
+          {
+            authorizationType: AuthorizationType.USER_POOL,
+            userPoolConfig: {
+              userPool: userPool,
+            },
+          },
           { authorizationType: AuthorizationType.IAM },
         ],
       },
@@ -100,6 +151,10 @@ export class AppSyncConstruct extends Construct {
     );
 
     const noneDs = this.scheduledPostGraphqlApi.addNoneDataSource("None");
+    const dbDataSource = this.scheduledPostGraphqlApi.addDynamoDbDataSource(
+      "schedulerAppDatasource",
+      postsTable
+    );
 
     this.scheduledPostGraphqlApi.createResolver("generatedTextResponse", {
       typeName: "Mutation",
@@ -408,5 +463,47 @@ export function response(ctx) {
         code: Code.fromAsset(path.join(__dirname, "../invoke/invoke.js")),
         runtime: FunctionRuntime.JS_1_0_0,
       });
+
+    const formatUserAccountFunction = new AppsyncFunction(
+      this,
+      "formatUserAccountInput",
+      {
+        api: this.scheduledPostGraphqlApi,
+        dataSource: noneDs,
+        name: "formatUserAccountInput",
+        code: Code.fromAsset("./resolvers/users/formatUserAccountInput.js"),
+        runtime: FunctionRuntime.JS_1_0_0,
+      }
+    );
+
+    const createUserAccountFunction = new AppsyncFunction(
+      this,
+      "createUserAccountFunction",
+      {
+        api: this.scheduledPostGraphqlApi,
+        dataSource: dbDataSource,
+        name: "createUserAccountFunction",
+        code: Code.fromAsset("./resolvers/users/createUserAccount.js"),
+        runtime: FunctionRuntime.JS_1_0_0,
+      }
+    );
+
+    this.scheduledPostGraphqlApi.createResolver("createUserAccount", {
+      typeName: "Mutation",
+      code: Code.fromAsset("./resolvers/pipeline/default.js"),
+      fieldName: "createUserAccount",
+      pipelineConfig: [formatUserAccountFunction, createUserAccountFunction],
+
+      runtime: FunctionRuntime.JS_1_0_0,
+    });
+
+    this.scheduledPostGraphqlApi.createResolver("updateUserAccount", {
+      typeName: "Mutation",
+      fieldName: "updateUserAccount",
+      dataSource: dbDataSource,
+      code: Code.fromAsset("./resolvers/users/updateUserAccount.js"),
+
+      runtime: FunctionRuntime.JS_1_0_0,
+    });
   }
 }

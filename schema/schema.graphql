@@ -8,6 +8,8 @@ type Query {
   getPost(id: String!): Post! @aws_api_key
   getAllPosts(limit: Int!, nextToken: String): PostsResult! @aws_api_key
   getUserAccount(id: String!): User! @aws_api_key
+
+  getUserByEmail(email: String!): User @aws_cognito_user_pools @aws_api_key
   generateImages(input: String!): [String!]! @aws_api_key
   imageGuidedGeneration(input: ImageGuidedGenerationInput!): [String!]!
     @aws_api_key
@@ -106,6 +108,7 @@ input AddressInput @aws_cognito_user_pools {
 input CreatePostInput @aws_api_key {
   content: String!
   imageUrls: [String!]
+  imageKeys: [String!]
   entity: String!
   userId: String!
   schedule: PostScheduleInput!
@@ -134,6 +137,7 @@ input UpdatePostInput @aws_api_key {
   userId: String
   content: String
   imageUrls: [String!]
+  imageKeys: [String!]
   schedule: PostScheduleInput!
   schedulePost: Boolean!
 }
@@ -144,6 +148,7 @@ type Post @aws_api_key {
   content: String!
   entity: String!
   imageUrls: [String!]
+  imageKeys: [String!]
   schedule: PostSchedule!
   schedulePost: Boolean!
   createdOn: AWSTimestamp!
