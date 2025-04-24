@@ -59,20 +59,6 @@ type GeneratedTextResponse @aws_iam @aws_api_key {
   text: String!
 }
 
-type User @aws_api_key {
-  id: String!
-  username: String!
-  firstName: String!
-  lastName: String!
-  entity: String!
-  userType: USERTYPE!
-  address: Address
-  email: AWSEmail!
-  profilePicUrl: String!
-  createdOn: AWSTimestamp
-  updatedOn: AWSTimestamp
-}
-
 input startStateMachineInput @aws_api_key {
   prompts: String!
 }
@@ -81,9 +67,32 @@ input CreateUserInput @aws_api_key {
   username: String!
   firstName: String!
   lastName: String!
+  about: String!
   email: AWSEmail!
   userType: USERTYPE!
+  profilePicKey: String!
   profilePicUrl: String!
+}
+
+input UpdateUserInput @aws_cognito_user_pools {
+  id: String!
+  username: String!
+  profilePicKey: String!
+  profilePicUrl: String!
+  address: AddressInput!
+}
+
+type Address @aws_api_key {
+  street: String!
+  city: String!
+  zip: Int!
+  country: String!
+}
+input AddressInput @aws_cognito_user_pools {
+  street: String!
+  city: String!
+  zip: Int!
+  country: String!
 }
 input UpdateUserInput @aws_cognito_user_pools {
   id: String!
@@ -91,6 +100,20 @@ input UpdateUserInput @aws_cognito_user_pools {
   email: AWSEmail!
   profilePicUrl: String!
   address: AddressInput!
+}
+type User @aws_api_key {
+  id: String!
+  username: String!
+  firstName: String!
+  lastName: String!
+  userType: USERTYPE!
+  about: String!
+  address: Address
+  email: AWSEmail!
+  profilePicUrl: String!
+  profilePicKey: String!
+  createdOn: AWSTimestamp
+  updatedOn: AWSTimestamp
 }
 type Address @aws_cognito_user_pools {
   street: String!
