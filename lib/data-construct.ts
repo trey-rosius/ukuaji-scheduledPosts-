@@ -14,8 +14,8 @@ export class DataConstruct extends Construct {
   constructor(scope: Construct, id: string) {
     super(scope, id);
     // The DynamoDB table for users
-    this.postsTable = new Table(this, "schedulePostsTable", {
-      tableName: "schedulePostTable",
+    this.postsTable = new Table(this, "rocreateTable", {
+      tableName: "rocreateTable",
 
       partitionKey: {
         name: "PK",

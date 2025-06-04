@@ -52,8 +52,8 @@ export class SchedulePostsStack extends cdk.Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
     // Event Bus used for application
-    const eventBus = new events.EventBus(this, "ScheduledPostEventBus", {
-      eventBusName: "ScheduledPostEventBus",
+    const eventBus = new events.EventBus(this, "rocreateEventBus", {
+      eventBusName: "rocreateEventBus",
     });
     const kbConstruct = new knowledgeBaseConstruct(
       this,
@@ -206,8 +206,8 @@ export class SchedulePostsStack extends cdk.Stack {
       },
       targets: [
         new targets.CloudWatchLogGroup(
-          new logs.LogGroup(this, "ScheduledPostsBusAllEvents", {
-            logGroupName: "/aws/events/ScheduledPostsEventBus/logs",
+          new logs.LogGroup(this, "rocreateLogsEvents", {
+            logGroupName: "/aws/events/rocreateEventBus/logs",
             removalPolicy: cdk.RemovalPolicy.DESTROY,
           })
         ),

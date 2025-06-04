@@ -53,9 +53,9 @@ export class StateMachineConstruct extends Construct {
     // Create the state machine using the CfnStateMachine construct
     this.generatePostStateMachine = new CfnStateMachine(
       this,
-      "GeneratePostStateMachine",
+      "roCreateGeneratePostStateMachine",
       {
-        stateMachineName: "GeneratePostStateMachine",
+        stateMachineName: "roCreateGeneratePostStateMachine",
         roleArn: this.stateMachineRole.roleArn,
 
         // Pass the ASL definition as a string

@@ -15,7 +15,6 @@ const metrics = new Metrics({
     aws_region: process.env.AWS_REGION || "N/A",
   },
 });
-
 const tracer = new Tracer();
 
 export { logger, metrics, tracer };

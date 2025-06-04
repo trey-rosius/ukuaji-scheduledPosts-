@@ -1,6 +1,7 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { ITable } from "aws-cdk-lib/aws-dynamodb";
+import { PythonFunction } from "@aws-cdk/aws-lambda-python-alpha";
 import {
   AppsyncFunction,
   AuthorizationType,
@@ -83,6 +84,20 @@ export class AppSyncConstruct extends Construct {
         minify: true,
       },
     };
+
+    const generatePostAgent = new PythonFunction(this, "generatePostAgent", {
+      entry: "./src/agents_resolvers/",
+      handler: "handler",
+
+      runtime: cdk.aws_lambda.Runtime.PYTHON_3_12,
+      memorySize: 256,
+      timeout: cdk.Duration.minutes(10),
+      logRetention: cdk.aws_logs.RetentionDays.ONE_WEEK,
+      tracing: cdk.aws_lambda.Tracing.ACTIVE,
+      environment: {
+        ...envVariables,
+      },
+    });
 
     const userPool: UserPool = new UserPool(
       this,
@@ -460,6 +475,15 @@ export function response(ctx) {
       .createResolver("startStateMachineResolver", {
         typeName: "Mutation",
         fieldName: "startStateMachine",
+        code: Code.fromAsset(path.join(__dirname, "../invoke/invoke.js")),
+        runtime: FunctionRuntime.JS_1_0_0,
+      });
+
+    this.scheduledPostGraphqlApi
+      .addLambdaDataSource("generatePostAgentDatasource", generatePostAgent)
+      .createResolver("generatePostAgentResolver", {
+        typeName: "Query",
+        fieldName: "getGeneratedPostAgent",
         code: Code.fromAsset(path.join(__dirname, "../invoke/invoke.js")),
         runtime: FunctionRuntime.JS_1_0_0,
       });

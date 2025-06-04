@@ -8,6 +8,7 @@ type Query {
   getPost(id: String!): Post! @aws_api_key
   getAllPosts(limit: Int!, nextToken: String): PostsResult! @aws_api_key
   getUserAccount(id: String!): User! @aws_api_key
+  getGeneratedPostAgent(input: String!, userId: String): String! @aws_api_key
 
   getUserByEmail(email: String!): User @aws_cognito_user_pools @aws_api_key
   generateImages(input: String!): [String!]! @aws_api_key
@@ -82,25 +83,6 @@ input UpdateUserInput @aws_cognito_user_pools {
   address: AddressInput!
 }
 
-type Address @aws_api_key {
-  street: String!
-  city: String!
-  zip: Int!
-  country: String!
-}
-input AddressInput @aws_cognito_user_pools {
-  street: String!
-  city: String!
-  zip: Int!
-  country: String!
-}
-input UpdateUserInput @aws_cognito_user_pools {
-  id: String!
-  username: String!
-  email: AWSEmail!
-  profilePicUrl: String!
-  address: AddressInput!
-}
 type User @aws_api_key {
   id: String!
   username: String!
