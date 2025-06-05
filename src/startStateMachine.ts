@@ -16,22 +16,34 @@ export const handler: AppSyncResolverHandler<
   logger.info(`prompt is ${JSON.stringify(event.arguments)}`);
 
   logger.info(`step functions input is ${prompt}`);
-  const stateMachineArn = process.env.STATE_MACHINE_ARN;
+  const postWithoutContextStateMachineArn =
+    process.env.POST_WITHOUT_CONTEXT_STATE_MACHINE_ARN;
+  const postWithContextStateMachineArn =
+    process.env.POST_WITH_CONTEXT_STATE_MACHINE_ARN;
 
-  if (!stateMachineArn) {
+  if (!postWithoutContextStateMachineArn || !postWithContextStateMachineArn) {
     console.log("STATE_MACHINE_ARN is not configured.");
 
     return false;
   }
 
   const client = new SFNClient({});
-  const command = new StartExecutionCommand({
-    stateMachineArn,
-    input,
-  });
 
   try {
-    const response = await client.send(command);
+    if (event.arguments.input.context) {
+      const command = new StartExecutionCommand({
+        stateMachineArn: postWithoutContextStateMachineArn,
+        input: input,
+      });
+      const response = await client.send(command);
+    } else {
+      const command = new StartExecutionCommand({
+        stateMachineArn: postWithContextStateMachineArn,
+        input: input,
+      });
+      const response = await client.send(command);
+    }
+
     return true;
   } catch (error: any) {
     console.error("Error starting Step Functions execution", error);

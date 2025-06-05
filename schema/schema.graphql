@@ -8,7 +8,6 @@ type Query {
   getPost(id: String!): Post! @aws_api_key
   getAllPosts(limit: Int!, nextToken: String): PostsResult! @aws_api_key
   getUserAccount(id: String!): User! @aws_api_key
-  getGeneratedPostAgent(input: String!, userId: String): String! @aws_api_key
 
   getUserByEmail(email: String!): User @aws_cognito_user_pools @aws_api_key
   generateImages(input: String!): [String!]! @aws_api_key
@@ -36,6 +35,10 @@ type Mutation {
   updateUserAccount(userInput: UpdateUserInput!): User! @aws_cognito_user_pools
   createPost(postInput: CreatePostInput!): Post! @aws_api_key
   updatePost(postInput: UpdatePostInput!): Post! @aws_cognito_user_pools
+  getGeneratedPostAgent(
+    input: String!
+    userId: String!
+  ): OnGeneratedTextAgentResponse! @aws_api_key @aws_iam
   deletePost(userId: String!, postId: String!): Boolean! @aws_api_key
   retrieveAndGenerateResponse(input: RetrieveAndGenerateResponseInput!): String
     @aws_api_key
@@ -60,8 +63,13 @@ type GeneratedTextResponse @aws_iam @aws_api_key {
   text: String!
 }
 
+type OnGeneratedTextAgentResponse @aws_iam @aws_api_key {
+  text: String!
+}
+
 input startStateMachineInput @aws_api_key {
   prompts: String!
+  context: Boolean!
 }
 
 input CreateUserInput @aws_api_key {
@@ -162,6 +170,7 @@ type Post @aws_api_key {
 
 type Subscription {
   createdPost: Post @aws_subscribe(mutations: ["createPost"])
+
   onGeneratedTextResponse: GeneratedTextResponse
     @aws_api_key
     @aws_subscribe(mutations: ["generatedText"])

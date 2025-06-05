@@ -30,7 +30,7 @@ import {
   ServicePrincipal,
 } from "aws-cdk-lib/aws-iam";
 import { DataConstruct } from "./data-construct";
-import { StateMachineConstruct } from "./statemachine-construct";
+
 import { AppSyncConstruct } from "./appsync-construct";
 import { knowledgeBaseConstruct } from "./knowledgebase-construct";
 
@@ -39,10 +39,7 @@ export class SchedulePostsStack extends cdk.Stack {
     super(scope, id, props);
 
     const dataConstruct = new DataConstruct(this, "DataConstruct");
-    const stateMachineConstruct = new StateMachineConstruct(
-      this,
-      "StateMachineConstruct"
-    );
+
     const scheduleRole = new iam.Role(this, "scheduleRole", {
       assumedBy: new iam.ServicePrincipal("scheduler.amazonaws.com"),
     });
@@ -65,7 +62,7 @@ export class SchedulePostsStack extends cdk.Stack {
       scheduledRole: scheduleRole,
       knowledgeBase: kbConstruct.knowledgeBase,
       postScheduledGroupName: postscheduleGroup.scheduleGroupName,
-      generatePostStateMachine: stateMachineConstruct.generatePostStateMachine,
+
       eventbus: eventBus,
     });
 
@@ -132,8 +129,6 @@ export class SchedulePostsStack extends cdk.Stack {
       },
     });
 
-    eventBus.grantPutEventsTo(stateMachineConstruct.stateMachineRole);
-
     new events.CfnRule(this, "GeneratedTextResponse", {
       eventBusName: eventBus.eventBusName,
 
@@ -163,7 +158,41 @@ export class SchedulePostsStack extends cdk.Stack {
         },
       ],
     });
+    /*
+    new events.CfnRule(this, "OnGeneratedAgentResponse", {
+      eventBusName: eventBus.eventBusName,
 
+      eventPattern: {
+        source: ["generatedAgentText.response"],
+        "detail-type": ["generatedAgentText.text"],
+      },
+      targets: [
+        {
+          id: "GeneratedTextAgentResponse",
+          arn: (
+            appSyncConstruct.scheduledPostGraphqlApi.node
+              .defaultChild as appsync.CfnGraphQLApi
+          ).attrGraphQlEndpointArn,
+          roleArn: ebRuleRole.roleArn,
+          appSyncParameters: {
+            graphQlOperation: `mutation GetGeneratedPostAgent($input:String!,$userId:String!) { getGeneratedPostAgent(input: $input,userId:$userId){
+             text
+            } }`,
+          },
+          inputTransformer: {
+            inputPathsMap: {
+              input: "$.detail.input",
+              userId: "$.detail.userId",
+            },
+            inputTemplate: JSON.stringify({
+              input: "<input>",
+              userId: "<userId>",
+            }),
+          },
+        },
+      ],
+    });
+*/
     new events.CfnRule(this, "GeneratedImagesResponse", {
       eventBusName: eventBus.eventBusName,
 

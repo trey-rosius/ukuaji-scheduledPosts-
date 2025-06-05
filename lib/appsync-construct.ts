@@ -14,6 +14,8 @@ import {
   FunctionRuntime,
   GraphqlApi,
 } from "aws-cdk-lib/aws-appsync";
+import { readFileSync } from "fs";
+
 import { CfnRule, EventBus } from "aws-cdk-lib/aws-events";
 import {
   Effect,
@@ -42,7 +44,6 @@ type AppSyncConstructProps = {
   scheduledRole: Role;
   knowledgeBase: KnowledgeBaseBase;
   postScheduledGroupName: string;
-  generatePostStateMachine: CfnStateMachine;
   eventbus: EventBus;
 };
 
@@ -53,17 +54,34 @@ const KEY_EXPIRATION_DATE = new Date(CURRENT_DATE.getTime() + SEVEN_DAYS);
 export class AppSyncConstruct extends Construct {
   public readonly schedulePostsFunction: NodejsFunction;
   public readonly scheduledPostGraphqlApi: GraphqlApi;
+
   constructor(scope: Construct, id: string, props: AppSyncConstructProps) {
     super(scope, id);
 
     const {
       scheduledRole,
       postScheduledGroupName,
-      generatePostStateMachine,
+
       eventbus,
       postsTable,
       knowledgeBase,
     } = props;
+
+    const aslPostWithContextFilePath = path.join(
+      __dirname,
+      "../workflow/generate_post_with_context_workflow.asl.json"
+    );
+    const postWithContextDefinitionJson = JSON.parse(
+      readFileSync(aslPostWithContextFilePath, "utf8")
+    );
+    const aslPostWithoutContextFilePath = path.join(
+      __dirname,
+      "../workflow/generate_post_without_context_workflow.asl.json"
+    );
+    const postWithoutContextDefinitionJson = JSON.parse(
+      readFileSync(aslPostWithoutContextFilePath, "utf8")
+    );
+
     const envVariables = {
       // AWS_ACCOUNT_ID: Stack.of(this).account,
       POWERTOOLS_SERVICE_NAME: "scheduled-posts",
@@ -96,7 +114,62 @@ export class AppSyncConstruct extends Construct {
       tracing: cdk.aws_lambda.Tracing.ACTIVE,
       environment: {
         ...envVariables,
+        EVENT_BUS_NAME: eventbus.eventBusName,
       },
+    });
+
+    eventbus.grantPutEventsTo(generatePostAgent);
+
+    generatePostAgent.addToRolePolicy(
+      new PolicyStatement({
+        actions: [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream",
+        ],
+        resources: ["*"],
+      })
+    );
+
+    // Create an IAM role for Step Functions (states.amazonaws.com must be allowed to assume this role)
+    const stateMachineRole = new Role(this, "StateMachineRole", {
+      assumedBy: new ServicePrincipal("states.amazonaws.com"),
+      description: "IAM Role assumed by the Step Functions state machine",
+    });
+
+    // Create the state machine using the CfnStateMachine construct
+    const generatePostWithoutContextStateMachine = new CfnStateMachine(
+      this,
+      "GeneratePostWithoutStateMachine",
+      {
+        stateMachineName: "generatePostWithoutContextStateMachine",
+        roleArn: stateMachineRole.roleArn,
+        definitionSubstitutions: {
+          FUNCTION_ARN: generatePostAgent.functionArn,
+        },
+
+        // Pass the ASL definition as a string
+        definitionString: JSON.stringify(postWithoutContextDefinitionJson),
+        stateMachineType: "STANDARD", // or 'EXPRESS' if preferred
+      }
+    );
+
+    // Create the state machine using the CfnStateMachine construct
+    const generatePostWithContextStateMachine = new CfnStateMachine(
+      this,
+      "GeneratePostWithContextStateMachine",
+      {
+        stateMachineName: "GeneratePostWithContextStateMachine",
+        roleArn: stateMachineRole.roleArn,
+
+        // Pass the ASL definition as a string
+        definitionString: JSON.stringify(postWithContextDefinitionJson),
+        stateMachineType: "STANDARD", // or 'EXPRESS' if preferred
+      }
+    );
+
+    generatePostAgent.addPermission("InvokeFromStateMachine", {
+      principal: new ServicePrincipal("states.amazonaws.com"),
+      sourceArn: generatePostWithContextStateMachine.attrArn,
     });
 
     const userPool: UserPool = new UserPool(
@@ -412,7 +485,10 @@ export function response(ctx) {
         ...functionSettings,
         environment: {
           ...envVariables,
-          STATE_MACHINE_ARN: generatePostStateMachine.attrArn,
+          POST_WITHOUT_CONTEXT_STATE_MACHINE_ARN:
+            generatePostWithoutContextStateMachine.attrArn,
+          POST_WITH_CONTEXT_STATE_MACHINE_ARN:
+            generatePostWithContextStateMachine.attrArn,
         },
       }
     );
@@ -450,7 +526,26 @@ export function response(ctx) {
           "states:DescribeExecution",
           "states:StopExecution",
         ],
-        resources: [generatePostStateMachine.attrArn],
+        resources: [
+          generatePostWithoutContextStateMachine.attrArn,
+          generatePostWithContextStateMachine.attrArn,
+        ],
+      })
+    );
+
+    eventbus.grantPutEventsTo(stateMachineRole);
+
+    // Grant permission to call Bedrock's InvokeModel on any foundation model.
+    stateMachineRole.addToPolicy(
+      new PolicyStatement({
+        actions: ["bedrock:InvokeModel"],
+        resources: ["*"],
+      })
+    );
+    stateMachineRole.addToPolicy(
+      new PolicyStatement({
+        actions: ["lambda:InvokeFunction"],
+        resources: [generatePostAgent.functionArn],
       })
     );
 
@@ -482,7 +577,7 @@ export function response(ctx) {
     this.scheduledPostGraphqlApi
       .addLambdaDataSource("generatePostAgentDatasource", generatePostAgent)
       .createResolver("generatePostAgentResolver", {
-        typeName: "Query",
+        typeName: "Mutation",
         fieldName: "getGeneratedPostAgent",
         code: Code.fromAsset(path.join(__dirname, "../invoke/invoke.js")),
         runtime: FunctionRuntime.JS_1_0_0,

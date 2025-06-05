@@ -18,7 +18,7 @@ export class knowledgeBaseConstruct extends Construct {
 
     const pinecone_vectorstore = new PineconeVectorStore({
       connectionString:
-        "https://ai-learning-app-kb-pbfqwcb.svc.aped-4627-b74a.pinecone.io",
+        "https://eca-workshops-pbfqwcb.svc.aped-4627-b74a.pinecone.io",
       credentialsSecretArn:
         "arn:aws:secretsmanager:us-east-1:132260253285:secret:pinecone-j4JvqP",
       textField: "text",
