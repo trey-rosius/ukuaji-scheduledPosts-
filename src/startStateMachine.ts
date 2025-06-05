@@ -1,19 +1,15 @@
 import { AppSyncResolverHandler } from "aws-lambda";
 import { SFNClient, StartExecutionCommand } from "@aws-sdk/client-sfn";
-import { MutationStartStateMachineArgs } from "../appsync";
+import { MutationStartAgentStateMachineArgs } from "../appsync";
 import { logger, metrics, tracer } from "../src/powertools/utilities";
 
 export const handler: AppSyncResolverHandler<
-  MutationStartStateMachineArgs,
+  MutationStartAgentStateMachineArgs,
   Boolean
 > = async (event, _context) => {
   // You can customize your input; here we use a fixed payload.
-  const prompt = [
-    `Write a short(not more than 400 letters) and insightful social media post on ${event.arguments.input.prompts}`,
-    "Generate 5 popular hashtags for the above post.Respond only with the hashtags and nothing else.",
-  ];
-  const input = JSON.stringify({ prompts: prompt });
-  logger.info(`prompt is ${JSON.stringify(event.arguments)}`);
+  const { length, platform, tone, topic, useKB } = event.arguments.input;
+  const input = JSON.stringify({ input: event.arguments.input });
 
   logger.info(`step functions input is ${prompt}`);
   const postWithoutContextStateMachineArn =
@@ -30,15 +26,15 @@ export const handler: AppSyncResolverHandler<
   const client = new SFNClient({});
 
   try {
-    if (event.arguments.input.context) {
+    if (useKB) {
       const command = new StartExecutionCommand({
-        stateMachineArn: postWithoutContextStateMachineArn,
+        stateMachineArn: postWithContextStateMachineArn,
         input: input,
       });
       const response = await client.send(command);
     } else {
       const command = new StartExecutionCommand({
-        stateMachineArn: postWithContextStateMachineArn,
+        stateMachineArn: postWithoutContextStateMachineArn,
         input: input,
       });
       const response = await client.send(command);

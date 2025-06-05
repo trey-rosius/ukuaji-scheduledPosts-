@@ -30,7 +30,8 @@ input ReplaceImageBackgroundInput @aws_api_key {
 }
 
 type Mutation {
-  startStateMachine(input: startStateMachineInput!): Boolean! @aws_api_key
+  startAgentStateMachine(input: StartAgentStateMachineInput!): Boolean!
+    @aws_api_key
   createUserAccount(userInput: CreateUserInput!): User! @aws_api_key
   updateUserAccount(userInput: UpdateUserInput!): User! @aws_cognito_user_pools
   createPost(postInput: CreatePostInput!): Post! @aws_api_key
@@ -67,9 +68,29 @@ type OnGeneratedTextAgentResponse @aws_iam @aws_api_key {
   text: String!
 }
 
-input startStateMachineInput @aws_api_key {
-  prompts: String!
-  context: Boolean!
+enum PLATFORM @aws_api_key {
+  X
+  LINKEDIN
+  FACEBOOK
+  WEB
+}
+enum TONE @aws_api_key {
+  FRIENDLY
+  PROFESSIONAL
+  HUMOROUS
+  MOTIVATIONAL
+}
+enum POST_LENGTH @aws_api_key {
+  SHORT
+  LONG
+}
+
+input StartAgentStateMachineInput @aws_api_key {
+  platform: PLATFORM!
+  topic: String!
+  tone: TONE!
+  length: POST_LENGTH!
+  useKB: Boolean!
 }
 
 input CreateUserInput @aws_api_key {
