@@ -105,7 +105,7 @@ export class AppSyncConstruct extends Construct {
 
     const generatePostAgent = new PythonFunction(this, "generatePostAgent", {
       entry: "./src/agents_resolvers/",
-      handler: "handler",
+      handler: "lambda_handler",
 
       runtime: cdk.aws_lambda.Runtime.PYTHON_3_12,
       memorySize: 256,
@@ -115,6 +115,7 @@ export class AppSyncConstruct extends Construct {
       environment: {
         ...envVariables,
         EVENT_BUS_NAME: eventbus.eventBusName,
+        STRANDS_KNOWLEDGE_BASE_ID: knowledgeBase.knowledgeBaseId,
       },
     });
 
@@ -125,6 +126,8 @@ export class AppSyncConstruct extends Construct {
         actions: [
           "bedrock:InvokeModel",
           "bedrock:InvokeModelWithResponseStream",
+          "bedrock:Retrieve",
+          "bedrock:RetrieveAndGenerate",
         ],
         resources: ["*"],
       })
@@ -143,9 +146,6 @@ export class AppSyncConstruct extends Construct {
       {
         stateMachineName: "generatePostWithoutContextStateMachine",
         roleArn: stateMachineRole.roleArn,
-        definitionSubstitutions: {
-          FUNCTION_ARN: generatePostAgent.functionArn,
-        },
 
         // Pass the ASL definition as a string
         definitionString: JSON.stringify(postWithoutContextDefinitionJson),
@@ -160,6 +160,9 @@ export class AppSyncConstruct extends Construct {
       {
         stateMachineName: "GeneratePostWithContextStateMachine",
         roleArn: stateMachineRole.roleArn,
+        definitionSubstitutions: {
+          FUNCTION_ARN: generatePostAgent.functionArn,
+        },
 
         // Pass the ASL definition as a string
         definitionString: JSON.stringify(postWithContextDefinitionJson),
@@ -569,7 +572,7 @@ export function response(ctx) {
       )
       .createResolver("startStateMachineResolver", {
         typeName: "Mutation",
-        fieldName: "startStateMachine",
+        fieldName: "startAgentStateMachine",
         code: Code.fromAsset(path.join(__dirname, "../invoke/invoke.js")),
         runtime: FunctionRuntime.JS_1_0_0,
       });

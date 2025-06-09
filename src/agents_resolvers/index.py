@@ -4,15 +4,15 @@ import json
 import os
 import boto3
 from strands import Agent
-from strands_tools import calculator
+from strands_tools import use_llm, memory
 from strands.models import BedrockModel
 import logging
 # Async function that iterates over streamed agent events
-EVENT_BUS_NAME = os.environ["EVENT_BUS_NAME"]   
+EVENT_BUS_NAME = os.environ["EVENT_BUS_NAME"]  
 client   = boto3.client("events") 
-
+STRANDS_KNOWLEDGE_BASE_ID=os.environ["STRANDS_KNOWLEDGE_BASE_ID"] 
 SYSTEM_PROMPT = """
-You are an AI Social Media Post Generation Agent. Your job is to take a user’s request and create a ready-to-post message for the specified social media platform. You have access to a knowledge base for additional context; if the user’s topic requires background or factual information, retrieve relevant details before composing the post.
+You are an AI Social Media Post Generation Agent. Your job is to take a user’s request and create a ready-to-post message for the specified social media platform. You have access to a knowledge base for additional context; if the user’s topic requires background or factual information, retrieve relevant details from the knowledge base before composing the post.
 
 ──────────────
 ### Capabilities
@@ -49,12 +49,12 @@ Users will send a JSON-like request with fields:
 • Return exactly one text string: the post ready for publishing.  
 • Do not wrap the text in quotes or metadata.  
 • Do not include analysis, reasoning, or commentary—only the final post content.  
-• If the platform is Twitter, verify the character count ≤ 280. If you exceed 280 characters, revise until it fits.
+• If the platform is X(Twitter), verify the character count ≤ 280. If you exceed 280 characters, revise until it fits.
 
 ──────────────
 ### Processing Steps
 1. **Validate `platform`**:  
-   - If `platform` is “twitter,” prepare to count characters.  
+   - If `platform` is “X(Twitter),” prepare to count characters.  
    - If unknown, ask the user to specify one of the supported platforms.
 
 2. **Optionally Query Knowledge Base**:  
@@ -62,13 +62,13 @@ Users will send a JSON-like request with fields:
    - Use only the most relevant 1–2 sentences from the KB to inform your post.
 
 3. **Compose the Post**:  
-   - Apply platform‐specific best practices (e.g., hashtags for Instagram, no more than 2–3 hashtags on Twitter, professional tone on LinkedIn).  
+   - Apply platform‐specific best practices (e.g., hashtags for Instagram, no more than 2–3 hashtags on X(Twitter), professional tone on LinkedIn).  
    - Use the user’s requested tone and length.  
-   - For Twitter, ensure ≤ 280 characters. Count “https://…” or “@username” properly as part of the character limit.  
+   - For X(Twitter), ensure ≤ 280 characters. Count “https://…” or “@username” properly as part of the character limit.  
    - For other platforms, respect reasonable length guidelines (e.g., 150–200 words maximum for Facebook or LinkedIn).
 
 4. **Final Check**:  
-   - If Twitter: recount characters, revise if needed.  
+   - If X(Twitter): recount characters, revise if needed.  
    - Ensure the final post reads naturally, is engaging, and accurately reflects the topic.  
    - Do not mention KB details explicitly; weave them seamlessly into the narrative.
 
@@ -86,7 +86,10 @@ logging.basicConfig(
 def lambda_handler(event, context):
 
     prompt_args = event.get("input", {})
-    logging.INFO(f"prompt_args: {prompt_args}")
+    logging.info(f"prompt_args: {prompt_args}")
+    logging.info(f"prompt_args: {prompt_args.get("topic","")}")
+
+    topic = prompt_args.get("topic","");
 
 
     bedrock_model = BedrockModel(
@@ -97,18 +100,25 @@ def lambda_handler(event, context):
     # Initialize our agent without a callback handler
     agent = Agent(
         model=bedrock_model,
+        tools=[memory, use_llm],
         system_prompt=SYSTEM_PROMPT,
-
-        callback_handler=None  # Disable default callback handler
+        callback_handler=None,
+        
     )
+    result = agent.tool.memory(
+            action="retrieve", 
+            query=topic,
+            min_score=0.4,  # Set reasonable minimum score threshold
+            max_results=9   # Retrieve a good number of results
+        )
     
 
 
     async def process_streaming_response():
-        query = prompt_args
+        query = json.dumps(prompt_args)
 
         # Get an async iterator for the agent's response stream
-        agent_stream = agent.stream_async(query)
+        agent_stream = agent.stream_async(f" user query was {query} and result from knowledge base was {str(result)} start your answer with newline character and provide a helpful answer based on this information")
 
         # Process events as they arrive
         async for event in agent_stream:
@@ -119,7 +129,7 @@ def lambda_handler(event, context):
                 client.put_events(
                     Entries=[
                         {
-                            "Time": datetime.now(datetime.timezone.utc),
+                            "Time": datetime.utcnow(),
                              "Source":"generatedText.response",
                              "DetailType":  "generated.text",
                             "Detail": json.dumps({

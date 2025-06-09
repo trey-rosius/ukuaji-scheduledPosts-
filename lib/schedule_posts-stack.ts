@@ -1,268 +1,133 @@
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
-import * as events from "aws-cdk-lib/aws-events";
-import * as targets from "aws-cdk-lib/aws-events-targets";
-import * as logs from "aws-cdk-lib/aws-logs";
+import * as scheduler from "aws-cdk-lib/aws-scheduler";
 import * as iam from "aws-cdk-lib/aws-iam";
-import * as pipes from "aws-cdk-lib/aws-pipes";
-import * as lambda from "aws-cdk-lib/aws-lambda";
-import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
-import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
-import * as path from "path";
-import { ScheduleGroup } from "aws-cdk-lib/aws-scheduler";
-import { LambdaTarget } from "aws-cdk-lib/aws-elasticloadbalancingv2-targets";
-import { CfnOutput, RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
-import * as cognito from "aws-cdk-lib/aws-cognito";
-import * as appsync from "aws-cdk-lib/aws-appsync";
-import {
-  CfnDataSource,
-  CfnGraphQLSchema,
-  FunctionRuntime,
-} from "aws-cdk-lib/aws-appsync";
+import { COMMON_TAGS } from "./constants";
+import { DatabaseConstruct } from "./constructs/database-construct";
+import { KnowledgeBaseConstruct } from "./constructs/knowledge-base-construct";
+import { AuthConstruct } from "./constructs/auth-construct";
+import { WorkflowConstruct } from "./constructs/workflow-construct";
+import { EventsConstruct } from "./constructs/events-construct";
+import { AppSyncConstruct } from "./constructs/appsync-construct";
 
-import { readFileSync } from "fs";
-import { CfnStateMachine } from "aws-cdk-lib/aws-stepfunctions";
-import {
-  Effect,
-  PolicyDocument,
-  PolicyStatement,
-  Role,
-  ServicePrincipal,
-} from "aws-cdk-lib/aws-iam";
-import { DataConstruct } from "./data-construct";
-
-import { AppSyncConstruct } from "./appsync-construct";
-import { knowledgeBaseConstruct } from "./knowledgebase-construct";
-
+/**
+ * Stack for the Scheduled Posts application
+ */
 export class SchedulePostsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const dataConstruct = new DataConstruct(this, "DataConstruct");
-
-    const scheduleRole = new iam.Role(this, "scheduleRole", {
+    // Create the IAM role for scheduled tasks
+    const scheduledRole = new iam.Role(this, "ScheduledRole", {
       assumedBy: new iam.ServicePrincipal("scheduler.amazonaws.com"),
+      description: "Role assumed by EventBridge Scheduler for scheduled posts",
     });
-    // Schedule group for all the user schedules
-    const postscheduleGroup = new ScheduleGroup(this, "PostScheduleGroup", {
-      scheduleGroupName: "PostScheduleGroup",
-      removalPolicy: RemovalPolicy.DESTROY,
+
+    // Create a schedule group for all user schedules
+    const postScheduleGroup = new scheduler.ScheduleGroup(
+      this,
+      "PostScheduleGroup",
+      {
+        scheduleGroupName: "PostScheduleGroup",
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+      }
+    );
+
+    // Apply common tags to the schedule group
+    Object.entries(COMMON_TAGS).forEach(([key, value]) => {
+      cdk.Tags.of(postScheduleGroup).add(key, value);
     });
-    // Event Bus used for application
-    const eventBus = new events.EventBus(this, "rocreateEventBus", {
-      eventBusName: "rocreateEventBus",
+
+    // Create the database construct
+    const databaseConstruct = new DatabaseConstruct(this, "DatabaseConstruct", {
+      tableName: "ScheduledPostsTable",
+      enablePITR: false, // Consider enabling for production
     });
-    const kbConstruct = new knowledgeBaseConstruct(
+
+    // Create the authentication construct
+    const authConstruct = new AuthConstruct(this, "AuthConstruct", {
+      userPoolName: "ScheduledPostsUserPool",
+    });
+
+    // Create the knowledge base construct
+    const knowledgeBaseConstruct = new KnowledgeBaseConstruct(
       this,
       "KnowledgeBaseConstruct",
-      {}
+      {
+        knowledgeBaseName: "ScheduledPostsKnowledgeBase",
+        bucketName: "scheduled-posts-knowledge-base-data",
+        pineconeConnectionString:
+          process.env.PINECONE_CONNECTION_STRING ||
+          "https://eca-workshops-pbfqwcb.svc.aped-4627-b74a.pinecone.io", // Should be in environment variables
+        pineconeCredentialsSecretArn:
+          process.env.PINECONE_CREDENTIALS_SECRET_ARN ||
+          "arn:aws:secretsmanager:us-east-1:132260253285:secret:pinecone-j4JvqP", // Should be in environment variables
+      }
     );
+
+    // Create the EventBridge event bus
+    const eventBus = new cdk.aws_events.EventBus(this, "EventBus", {
+      eventBusName: "ScheduledPostsEventBus",
+    });
+
+    // Apply common tags to the event bus
+    Object.entries(COMMON_TAGS).forEach(([key, value]) => {
+      cdk.Tags.of(eventBus).add(key, value);
+    });
+
+    // Create the workflow construct
+    const workflowConstruct = new WorkflowConstruct(this, "WorkflowConstruct", {
+      eventBus: eventBus,
+      knowledgeBase: knowledgeBaseConstruct.knowledgeBase,
+    });
+
+    // Create the AppSync construct
     const appSyncConstruct = new AppSyncConstruct(this, "AppSyncConstruct", {
-      postsTable: dataConstruct.postsTable,
-      scheduledRole: scheduleRole,
-      knowledgeBase: kbConstruct.knowledgeBase,
-      postScheduledGroupName: postscheduleGroup.scheduleGroupName,
-
-      eventbus: eventBus,
+      postsTable: databaseConstruct.postsTable,
+      scheduledRole: scheduledRole,
+      knowledgeBase: knowledgeBaseConstruct.knowledgeBase,
+      postScheduledGroupName: postScheduleGroup.scheduleGroupName,
+      eventBus: eventBus,
+      userPool: authConstruct.userPool,
     });
 
-    const pipeRole = new Role(this, "ScheduledPostsPipeRole", {
-      assumedBy: new ServicePrincipal("pipes.amazonaws.com"),
+    // Create the events construct after AppSync is created
+    const eventsConstruct = new EventsConstruct(this, "EventsConstruct", {
+      postsTable: databaseConstruct.postsTable,
+      eventBus: eventBus,
+      api: appSyncConstruct.api,
+      schedulePostsFunction: appSyncConstruct.schedulePostsFunction,
     });
 
-    dataConstruct.postsTable.grantReadWriteData(
+    // Grant the schedule posts function access to the DynamoDB table
+    databaseConstruct.postsTable.grantReadWriteData(
       appSyncConstruct.schedulePostsFunction
     );
-    dataConstruct.postsTable.grantStreamRead(pipeRole);
-    eventBus.grantPutEventsTo(pipeRole);
-
-    // Create EventBridge Pipe, to connect new DynamoDB items to EventBridge.
-    new pipes.CfnPipe(this, "schedulePostPipe", {
-      roleArn: pipeRole.roleArn,
-      source: dataConstruct.postsTable.tableStreamArn!,
-      sourceParameters: {
-        dynamoDbStreamParameters: {
-          startingPosition: "LATEST",
-          batchSize: 3,
-        },
-        filterCriteria: {
-          filters: [
-            {
-              pattern: JSON.stringify({
-                eventName: ["INSERT"],
-                dynamodb: {
-                  NewImage: {
-                    entity: {
-                      S: ["POST"],
-                    },
-                  },
-                },
-              }),
-            },
-          ],
-        },
-      },
-      target: eventBus.eventBusArn,
-      targetParameters: {
-        eventBridgeEventBusParameters: {
-          detailType: "SchedulePostCreated",
-          source: "schedule.posts",
-        },
-        inputTemplate: '{"posts": <$.dynamodb.NewImage>}',
-      },
-    });
-
-    const policyStatement = new PolicyStatement({
-      effect: Effect.ALLOW,
-      actions: ["appsync:GraphQL"],
-      resources: [
-        `${appSyncConstruct.scheduledPostGraphqlApi.arn}/types/Mutation/*`,
-      ],
-    });
-
-    const ebRuleRole = new Role(this, "AppSyncEventBridgeRole", {
-      assumedBy: new ServicePrincipal("events.amazonaws.com"),
-      inlinePolicies: {
-        PolicyStatement: new PolicyDocument({
-          statements: [policyStatement],
-        }),
-      },
-    });
-
-    new events.CfnRule(this, "GeneratedTextResponse", {
-      eventBusName: eventBus.eventBusName,
-
-      eventPattern: {
-        source: ["generatedText.response"],
-        "detail-type": ["generated.text"],
-      },
-      targets: [
-        {
-          id: "GeneratedTextResponse",
-          arn: (
-            appSyncConstruct.scheduledPostGraphqlApi.node
-              .defaultChild as appsync.CfnGraphQLApi
-          ).attrGraphQlEndpointArn,
-          roleArn: ebRuleRole.roleArn,
-          appSyncParameters: {
-            graphQlOperation: `mutation GeneratedText($input:String!) { generatedText(input: $input) { text} }`,
-          },
-          inputTransformer: {
-            inputPathsMap: {
-              input: "$.detail.input",
-            },
-            inputTemplate: JSON.stringify({
-              input: "<input>",
-            }),
-          },
-        },
-      ],
-    });
-    /*
-    new events.CfnRule(this, "OnGeneratedAgentResponse", {
-      eventBusName: eventBus.eventBusName,
-
-      eventPattern: {
-        source: ["generatedAgentText.response"],
-        "detail-type": ["generatedAgentText.text"],
-      },
-      targets: [
-        {
-          id: "GeneratedTextAgentResponse",
-          arn: (
-            appSyncConstruct.scheduledPostGraphqlApi.node
-              .defaultChild as appsync.CfnGraphQLApi
-          ).attrGraphQlEndpointArn,
-          roleArn: ebRuleRole.roleArn,
-          appSyncParameters: {
-            graphQlOperation: `mutation GetGeneratedPostAgent($input:String!,$userId:String!) { getGeneratedPostAgent(input: $input,userId:$userId){
-             text
-            } }`,
-          },
-          inputTransformer: {
-            inputPathsMap: {
-              input: "$.detail.input",
-              userId: "$.detail.userId",
-            },
-            inputTemplate: JSON.stringify({
-              input: "<input>",
-              userId: "<userId>",
-            }),
-          },
-        },
-      ],
-    });
-*/
-    new events.CfnRule(this, "GeneratedImagesResponse", {
-      eventBusName: eventBus.eventBusName,
-
-      eventPattern: {
-        source: ["generatedImages.response"],
-        "detail-type": ["generated.images"],
-      },
-      targets: [
-        {
-          id: "GeneratedImagesResponse",
-          arn: (
-            appSyncConstruct.scheduledPostGraphqlApi.node
-              .defaultChild as appsync.CfnGraphQLApi
-          ).attrGraphQlEndpointArn,
-          roleArn: ebRuleRole.roleArn,
-          appSyncParameters: {
-            graphQlOperation: `mutation GenerateImagesResponse($input:[String!]!) { generateImagesResponse(input: $input){
-             base64Images
-            
-            } }`,
-          },
-          inputTransformer: {
-            inputPathsMap: {
-              input: "$.detail.input",
-            },
-            inputTemplate: JSON.stringify({
-              input: "<input>",
-            }),
-          },
-        },
-      ],
-    });
-
-    // CloudWatch Log group to catch all events through this event bus, for debugging.
-    new events.Rule(this, "catchAllLogRule", {
-      ruleName: "catch-all",
-      eventBus: eventBus,
-      eventPattern: {
-        source: events.Match.prefix(""),
-      },
-      targets: [
-        new targets.CloudWatchLogGroup(
-          new logs.LogGroup(this, "rocreateLogsEvents", {
-            logGroupName: "/aws/events/rocreateEventBus/logs",
-            removalPolicy: cdk.RemovalPolicy.DESTROY,
-          })
-        ),
-      ],
-    });
-
-    // Create a rule. Listen for event and trigger lambda to create schedule
-    new events.Rule(this, "create-post-schedules", {
-      ruleName: "create-post-schedules",
-      eventBus: eventBus,
-      eventPattern: {
-        source: events.Match.exactString("schedule.posts"),
-        detailType: events.Match.exactString("SchedulePostCreated"),
-      },
-      targets: [
-        new targets.LambdaFunction(appSyncConstruct.schedulePostsFunction),
-      ],
-    });
 
     // Output the API URL and API Key
     new cdk.CfnOutput(this, "GraphQLAPIURL", {
-      value: appSyncConstruct.scheduledPostGraphqlApi.graphqlUrl,
+      value: appSyncConstruct.api.graphqlUrl,
+      description: "The URL of the GraphQL API",
     });
 
     new cdk.CfnOutput(this, "GraphQLAPIKey", {
-      value: appSyncConstruct.scheduledPostGraphqlApi.apiKey || "",
+      value: appSyncConstruct.api.apiKey || "",
+      description: "The API key for the GraphQL API",
+    });
+
+    new cdk.CfnOutput(this, "UserPoolId", {
+      value: authConstruct.userPool.userPoolId,
+      description: "The ID of the Cognito User Pool",
+    });
+
+    new cdk.CfnOutput(this, "UserPoolClientId", {
+      value: authConstruct.userPoolClient.userPoolClientId,
+      description: "The ID of the Cognito User Pool Client",
+    });
+
+    // Apply common tags to the stack
+    Object.entries(COMMON_TAGS).forEach(([key, value]) => {
+      cdk.Tags.of(this).add(key, value);
     });
   }
 }

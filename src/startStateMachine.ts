@@ -11,7 +11,7 @@ export const handler: AppSyncResolverHandler<
   const { length, platform, tone, topic, useKB } = event.arguments.input;
   const input = JSON.stringify({ input: event.arguments.input });
 
-  logger.info(`step functions input is ${prompt}`);
+  logger.info(`step functions input is ${input}`);
   const postWithoutContextStateMachineArn =
     process.env.POST_WITHOUT_CONTEXT_STATE_MACHINE_ARN;
   const postWithContextStateMachineArn =
