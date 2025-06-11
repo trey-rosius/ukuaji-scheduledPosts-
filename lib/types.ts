@@ -6,6 +6,9 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as appsync from "aws-cdk-lib/aws-appsync";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import { KnowledgeBaseBase } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock";
+import { StateMachine } from "aws-cdk-lib/aws-stepfunctions";
+import { PythonFunction } from "@aws-cdk/aws-lambda-python-alpha/lib/function";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs/lib/function";
 
 /**
  * Properties for the AuthConstruct
@@ -130,4 +133,8 @@ export interface AppSyncConstructProps {
    * The Cognito user pool
    */
   userPool: cognito.UserPool;
+
+  generatePostAgentFunction: PythonFunction;
+
+  startWorkflowFunction: NodejsFunction;
 }

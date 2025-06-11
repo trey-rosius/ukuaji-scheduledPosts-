@@ -34,6 +34,8 @@ export class AppSyncConstruct extends Construct {
    */
   public readonly sendPostsFunction: NodejsFunction;
 
+  public readonly startWorkflowFunction: NodejsFunction;
+
   constructor(scope: Construct, id: string, props: AppSyncConstructProps) {
     super(scope, id);
 
@@ -43,6 +45,9 @@ export class AppSyncConstruct extends Construct {
       knowledgeBase,
       postScheduledGroupName,
       eventBus,
+      startWorkflowFunction,
+      generatePostAgentFunction,
+
       userPool,
     } = props;
 
@@ -277,6 +282,34 @@ export function response(ctx) {
 
     // Grant permissions to invoke the send posts function
     this.sendPostsFunction.grantInvoke(scheduledRole);
+
+    this.api
+      .addLambdaDataSource(
+        "startStateMachineLambdaDatasource",
+        startWorkflowFunction
+      )
+      .createResolver("startStateMachineResolver", {
+        typeName: "Mutation",
+        fieldName: "startAgentStateMachine",
+        code: appsync.Code.fromAsset(
+          path.join(__dirname, "../../invoke/invoke.js")
+        ),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      });
+
+    this.api
+      .addLambdaDataSource(
+        "generatePostAgentDatasource",
+        generatePostAgentFunction
+      )
+      .createResolver("generatePostAgentResolver", {
+        typeName: "Mutation",
+        fieldName: "getGeneratedPostAgent",
+        code: appsync.Code.fromAsset(
+          path.join(__dirname, "../../invoke/invoke.js")
+        ),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      });
 
     // Create the schedule posts function
     this.schedulePostsFunction = new NodejsFunction(

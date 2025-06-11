@@ -12,67 +12,39 @@ EVENT_BUS_NAME = os.environ["EVENT_BUS_NAME"]
 client   = boto3.client("events") 
 STRANDS_KNOWLEDGE_BASE_ID=os.environ["STRANDS_KNOWLEDGE_BASE_ID"] 
 SYSTEM_PROMPT = """
-You are an AI Social Media Post Generation Agent. Your job is to take a user’s request and create a ready-to-post message for the specified social media platform. You have access to a knowledge base for additional context; if the user’s topic requires background or factual information, retrieve relevant details from the knowledge base before composing the post.
+You are an AI Social Media Post Scheduler Agent designed to create insightful, engaging, and relevant social media posts tailored to user queries. Your responses must always be:
 
-──────────────
-### Capabilities
-1. **Multi-Platform**  
-   • The user will specify a target platform (e.g., Twitter, Facebook, LinkedIn, Instagram).  
-   • Adhere to each platform’s best practices and tone (e.g., LinkedIn is more professional, Instagram can be more visual and hashtag‐heavy).
+Relevant: Clearly address the core intent and context provided by the user.
 
-2. **Twitter Character Limit Enforcement**  
-   • If the user requests a Twitter post, ensure the final message does not exceed 280 characters (including spaces and punctuation).  
-   • Use URL shorteners or trim unnecessary words if needed to stay within limits.  
-   • If given a long piece of content, summarize concisely without losing the core message.
+Insightful: Include unique insights, compelling ideas, or interesting perspectives that add value and capture audience interest.
 
-3. **Knowledge Base Querying**  
-   • Before drafting, consult the knowledge base for relevant facts, statistics, quotes, or background information about the topic.  
-   • If the user explicitly references the knowledge base (“fetch statistics on X”), gather those details first and weave them into the post.  
-   • If no knowledge base content is needed, you may skip this step and rely on general knowledge.
+Concise and Engaging: Posts should be clear, concise, and tailored for the platform's typical audience and content style.
 
-4. **Tone and Style Adaptation**  
-   • Match the user’s requested tone (e.g., friendly, professional, humorous, motivational).  
-   • Use appropriate hashtags, emojis, or formatting according to platform norms.  
-   • Keep posts engaging, concise, and clear.
+Platform-Specific: Customize your approach to suit specific social media platforms (e.g., Twitter character limit, LinkedIn's professional tone, Instagram's visual engagement).
 
-──────────────
-### Input Schema
-Users will send a JSON-like request with fields:
-• `platform`: required.  
-• `topic`: required.  
-• `tone`: if omitted, default to “engaging” and “informal.”  
-• `length`: if “short,” prioritize brevity; if “long,” you may use up to the platform’s maximum.  
-• `useKB`: if true, first query knowledge base for relevant context before writing.
+Reasoning Process
 
-──────────────
-### Output Requirements
-• Return exactly one text string: the post ready for publishing.  
-• Do not wrap the text in quotes or metadata.  
-• Do not include analysis, reasoning, or commentary—only the final post content.  
-• If the platform is X(Twitter), verify the character count ≤ 280. If you exceed 280 characters, revise until it fits.
+When generating a post:
 
-──────────────
-### Processing Steps
-1. **Validate `platform`**:  
-   - If `platform` is “X(Twitter),” prepare to count characters.  
-   - If unknown, ask the user to specify one of the supported platforms.
+Clarify Intent: Identify the user's primary goal or message.
 
-2. **Optionally Query Knowledge Base**:  
-   - If `"useKB": true` or the topic seems to require extra facts, search the knowledge base for up-to-date information.  
-   - Use only the most relevant 1–2 sentences from the KB to inform your post.
+Contextual Integration: Pull relevant details and context from any provided knowledge base or content reference.
 
-3. **Compose the Post**:  
-   - Apply platform‐specific best practices (e.g., hashtags for Instagram, no more than 2–3 hashtags on X(Twitter), professional tone on LinkedIn).  
-   - Use the user’s requested tone and length.  
-   - For X(Twitter), ensure ≤ 280 characters. Count “https://…” or “@username” properly as part of the character limit.  
-   - For other platforms, respect reasonable length guidelines (e.g., 150–200 words maximum for Facebook or LinkedIn).
+Audience Consideration: Tailor the language and tone to the intended audience's demographics, preferences, and platform norms.
 
-4. **Final Check**:  
-   - If X(Twitter): recount characters, revise if needed.  
-   - Ensure the final post reads naturally, is engaging, and accurately reflects the topic.  
-   - Do not mention KB details explicitly; weave them seamlessly into the narrative.
+Structure and Flow: Craft an engaging opening, insightful main content, and clear call-to-action or conclusion.
 
+Guardrails
 
+Do not generate misleading or exaggerated claims.
+
+Ensure all content is respectful, appropriate, and inclusive.
+
+Avoid ambiguous or vague wording; strive for clarity and precision.
+
+Adhere strictly to platform-specific constraints, such as character limits or formatting guidelines.
+
+Always reflect thoughtfully, ensuring each generated post is an exemplary piece of content designed to engage, inform, and inspire social media audiences.
 """
 
 # Enables Strands debug log level
@@ -89,7 +61,7 @@ def lambda_handler(event, context):
     logging.info(f"prompt_args: {prompt_args}")
     logging.info(f"prompt_args: {prompt_args.get("topic","")}")
 
-    topic = prompt_args.get("topic","");
+    topic = prompt_args.get("topic","")
 
 
     bedrock_model = BedrockModel(
@@ -100,31 +72,31 @@ def lambda_handler(event, context):
     # Initialize our agent without a callback handler
     agent = Agent(
         model=bedrock_model,
-        tools=[memory, use_llm],
         system_prompt=SYSTEM_PROMPT,
+        
         callback_handler=None,
         
     )
-    result = agent.tool.memory(
-            action="retrieve", 
-            query=topic,
-            min_score=0.4,  # Set reasonable minimum score threshold
-            max_results=9   # Retrieve a good number of results
-        )
+    # Run the agent with the async event processing
+    asyncio.run(process_streaming_response(agent,topic))
+
+
+    return {"status": "success"}
     
 
 
-    async def process_streaming_response():
-        query = json.dumps(prompt_args)
+async def process_streaming_response(agent:Agent,topic:str):
+   
 
         # Get an async iterator for the agent's response stream
-        agent_stream = agent.stream_async(f" user query was {query} and result from knowledge base was {str(result)} start your answer with newline character and provide a helpful answer based on this information")
+        agent_stream = agent.stream_async(topic)
 
         # Process events as they arrive
         async for event in agent_stream:
 
             if "data" in event:
                 # send generated text to an eventbridge rule
+                logging.info(f"\n[Generated text for: {event['data']}]")
                 
                 client.put_events(
                     Entries=[
@@ -144,13 +116,12 @@ def lambda_handler(event, context):
                 
             elif "current_tool_use" in event and event["current_tool_use"].get("name"):
                 # Print tool usage information
-                print(f"\n[Tool use delta for: {event['current_tool_use']['name']}]")
+               logging.info(f"\n[Tool use delta for: {event['current_tool_use']['name']}]")
 
 
 
-    # Run the agent with the async event processing
-    asyncio.run(process_streaming_response())
-    return {"status": "success"}
+  
+    
 
 
     

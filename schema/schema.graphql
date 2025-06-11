@@ -7,7 +7,7 @@ schema {
 type Query {
   getPost(id: String!): Post! @aws_api_key
   getAllPosts(limit: Int!, nextToken: String): PostsResult! @aws_api_key
-  getUserAccount(id: String!): User! @aws_api_key
+  getUserAccount(id: String!): User! @aws_cognito_user_pools @aws_api_key
 
   getUserByEmail(email: String!): User @aws_cognito_user_pools @aws_api_key
   generateImages(input: String!): [String!]! @aws_api_key
@@ -32,7 +32,9 @@ input ReplaceImageBackgroundInput @aws_api_key {
 type Mutation {
   startAgentStateMachine(input: StartAgentStateMachineInput!): Boolean!
     @aws_api_key
-  createUserAccount(userInput: CreateUserInput!): User! @aws_api_key
+  createUserAccount(userInput: CreateUserInput!): User!
+    @aws_api_key
+    @aws_cognito_user_pools
   updateUserAccount(userInput: UpdateUserInput!): User! @aws_cognito_user_pools
   createPost(postInput: CreatePostInput!): Post! @aws_api_key
   updatePost(postInput: UpdatePostInput!): Post! @aws_cognito_user_pools
@@ -93,7 +95,7 @@ input StartAgentStateMachineInput @aws_api_key {
   useKB: Boolean!
 }
 
-input CreateUserInput @aws_api_key {
+input CreateUserInput @aws_cognito_user_pools @aws_api_key {
   username: String!
   firstName: String!
   lastName: String!
@@ -112,7 +114,7 @@ input UpdateUserInput @aws_cognito_user_pools {
   address: AddressInput!
 }
 
-type User @aws_api_key {
+type User @aws_cognito_user_pools @aws_api_key {
   id: String!
   username: String!
   firstName: String!

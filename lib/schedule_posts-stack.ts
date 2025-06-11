@@ -87,6 +87,9 @@ export class SchedulePostsStack extends cdk.Stack {
       scheduledRole: scheduledRole,
       knowledgeBase: knowledgeBaseConstruct.knowledgeBase,
       postScheduledGroupName: postScheduleGroup.scheduleGroupName,
+      generatePostAgentFunction: workflowConstruct.generatePostAgentFunction,
+      startWorkflowFunction: workflowConstruct.startWorkflowFunction,
+
       eventBus: eventBus,
       userPool: authConstruct.userPool,
     });
