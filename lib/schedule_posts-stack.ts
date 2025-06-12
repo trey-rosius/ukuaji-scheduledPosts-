@@ -79,6 +79,7 @@ export class SchedulePostsStack extends cdk.Stack {
     const workflowConstruct = new WorkflowConstruct(this, "WorkflowConstruct", {
       eventBus: eventBus,
       knowledgeBase: knowledgeBaseConstruct.knowledgeBase,
+      postsTable: databaseConstruct.postsTable,
     });
 
     // Create the AppSync construct
@@ -89,7 +90,7 @@ export class SchedulePostsStack extends cdk.Stack {
       postScheduledGroupName: postScheduleGroup.scheduleGroupName,
       generatePostAgentFunction: workflowConstruct.generatePostAgentFunction,
       startWorkflowFunction: workflowConstruct.startWorkflowFunction,
-
+      invokeTextToVideoFunction: workflowConstruct.invokeTextToVideoFunction,
       eventBus: eventBus,
       userPool: authConstruct.userPool,
     });

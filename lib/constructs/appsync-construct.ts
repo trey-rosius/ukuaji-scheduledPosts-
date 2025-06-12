@@ -36,6 +36,11 @@ export class AppSyncConstruct extends Construct {
 
   public readonly startWorkflowFunction: NodejsFunction;
 
+  /**
+   * The Lambda function for invoking the text-to-video workflow
+   */
+  public readonly invokeTextToVideoFunction: NodejsFunction;
+
   constructor(scope: Construct, id: string, props: AppSyncConstructProps) {
     super(scope, id);
 
@@ -49,6 +54,7 @@ export class AppSyncConstruct extends Construct {
       generatePostAgentFunction,
 
       userPool,
+      invokeTextToVideoFunction,
     } = props;
 
     // Calculate API key expiration date
@@ -409,13 +415,31 @@ export function response(ctx) {
       runtime: appsync.FunctionRuntime.JS_1_0_0,
     });
 
+    // Add data source and resolver for the text-to-video workflow
+    this.api
+      .addLambdaDataSource(
+        "invokeTextToVideoLambdaDatasource",
+        invokeTextToVideoFunction
+      )
+      .createResolver("invokeTextToVideoResolver", {
+        typeName: "Mutation",
+        fieldName: "generateTextToVideo",
+        code: appsync.Code.fromAsset(
+          path.join(__dirname, "../../resolvers/generateTextToVideo.js")
+        ),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      });
+
     // Apply common tags
-    [this.api, this.schedulePostsFunction, this.sendPostsFunction].forEach(
-      (resource) => {
-        Object.entries(COMMON_TAGS).forEach(([key, value]) => {
-          cdk.Tags.of(resource).add(key, value);
-        });
-      }
-    );
+    [
+      this.api,
+      this.schedulePostsFunction,
+      this.sendPostsFunction,
+      invokeTextToVideoFunction,
+    ].forEach((resource) => {
+      Object.entries(COMMON_TAGS).forEach(([key, value]) => {
+        cdk.Tags.of(resource).add(key, value);
+      });
+    });
   }
 }

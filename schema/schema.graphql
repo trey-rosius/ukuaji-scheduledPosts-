@@ -52,6 +52,15 @@ type Mutation {
   generateImagesResponse(input: [String!]!): GeneratedImageResponse!
     @aws_iam
     @aws_api_key
+
+  generateTextToVideo(input: TextToVideoInput!): Boolean! @aws_api_key
+}
+
+input TextToVideoInput @aws_api_key {
+  query: String!
+  bucketUri: String!
+  folderUUID: String!
+  userId: String!
 }
 
 input RetrieveAndGenerateResponseInput @aws_api_key {

@@ -73,6 +73,11 @@ export interface WorkflowConstructProps {
    * The Bedrock knowledge base
    */
   knowledgeBase: KnowledgeBaseBase;
+
+  /**
+   * The DynamoDB table for posts
+   */
+  postsTable: dynamodb.Table;
 }
 
 /**
@@ -137,4 +142,9 @@ export interface AppSyncConstructProps {
   generatePostAgentFunction: PythonFunction;
 
   startWorkflowFunction: NodejsFunction;
+
+  /**
+   * The Lambda function for invoking the text-to-video workflow
+   */
+  invokeTextToVideoFunction: NodejsFunction;
 }

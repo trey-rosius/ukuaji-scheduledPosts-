@@ -3,6 +3,8 @@ import * as cdk from "aws-cdk-lib";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as sfn from "aws-cdk-lib/aws-stepfunctions";
+import * as s3 from "aws-cdk-lib/aws-s3";
+
 import { PythonFunction } from "@aws-cdk/aws-lambda-python-alpha";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { WorkflowConstructProps } from "../types";
@@ -35,14 +37,47 @@ export class WorkflowConstruct extends Construct {
   public readonly generatePostWithoutContextStateMachine: sfn.StateMachine;
 
   /**
+   * The Step Function state machine for text-to-video generation
+   */
+  public readonly textToVideoStateMachine: sfn.StateMachine;
+
+  /**
+   * The S3 bucket for storing generated videos and thumbnails
+   */
+  public readonly mediaBucket: s3.Bucket;
+
+  /**
    * The Lambda function for starting workflows
    */
   public readonly startWorkflowFunction: NodejsFunction;
 
+  /**
+   * The Lambda function for invoking the text-to-video workflow
+   */
+  public readonly invokeTextToVideoFunction: NodejsFunction;
+
   constructor(scope: Construct, id: string, props: WorkflowConstructProps) {
     super(scope, id);
 
-    const { eventBus, knowledgeBase } = props;
+    const { eventBus, knowledgeBase, postsTable } = props;
+
+    // Create an S3 bucket for storing generated videos and thumbnails
+    this.mediaBucket = new s3.Bucket(this, "MediaBucket", {
+      bucketName: `${cdk.Stack.of(this).account}-${
+        cdk.Stack.of(this).region
+      }-saturn-posts-media`,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      versioned: true,
+      lifecycleRules: [
+        {
+          id: "DeleteOldVersions",
+          enabled: true,
+          noncurrentVersionExpiration: cdk.Duration.days(30),
+        },
+      ],
+    });
 
     // Create the Lambda function for generating posts with an agent
     this.generatePostAgentFunction = new PythonFunction(
@@ -95,14 +130,24 @@ export class WorkflowConstruct extends Construct {
     // Grant permissions to the state machine role
     eventBus.grantPutEventsTo(stateMachineRole);
 
-    // Grant permission to call Bedrock's InvokeModel
+    // Grant permission to call Bedrock's InvokeModel and AsyncInvoke operations
     stateMachineRole.addToPolicy(
       new iam.PolicyStatement({
-        actions: ["bedrock:InvokeModel"],
+        actions: [
+          "bedrock:InvokeModel",
+          "bedrock:StartAsyncInvoke",
+          "bedrock:GetAsyncInvoke",
+        ],
         resources: ["*"], // Consider restricting to specific model ARNs in production
         effect: iam.Effect.ALLOW,
       })
     );
+
+    // Grant permission to access the media bucket
+    this.mediaBucket.grantReadWrite(stateMachineRole);
+
+    // Grant permission to access the DynamoDB table
+    postsTable.grantReadWriteData(stateMachineRole);
 
     // Grant permission to invoke the Lambda function
     stateMachineRole.addToPolicy(
@@ -184,6 +229,41 @@ export class WorkflowConstruct extends Construct {
       }
     );
 
+    // Load the ASL definition for the text-to-video workflow
+    const aslTextToVideoFilePath = path.join(
+      __dirname,
+      "../../workflow/text_to_video_workflow.asl.json"
+    );
+    const textToVideoDefinitionJson = JSON.parse(
+      readFileSync(aslTextToVideoFilePath, "utf8")
+    );
+
+    // Create the state machine for text-to-video generation
+    this.textToVideoStateMachine = new sfn.StateMachine(
+      this,
+      "TextToVideoStateMachine",
+      {
+        stateMachineName: "TextToVideoStateMachine",
+        role: stateMachineRole,
+        definitionBody: sfn.DefinitionBody.fromString(
+          JSON.stringify(
+            this.replaceDefinitionPlaceholders(textToVideoDefinitionJson, {
+              DYNAMODB_TABLE_ARN: postsTable.tableArn,
+            })
+          )
+        ),
+        tracingEnabled: true,
+        logs: {
+          destination: new cdk.aws_logs.LogGroup(this, "TextToVideoLogGroup", {
+            logGroupName: "/aws/stepfunctions/TextToVideoStateMachine",
+            retention: DEFAULT_LOG_RETENTION_DAYS,
+            removalPolicy: cdk.RemovalPolicy.DESTROY,
+          }),
+          level: sfn.LogLevel.ALL,
+        },
+      }
+    );
+
     // Grant the state machine permission to invoke the Lambda function
     this.generatePostAgentFunction.addPermission("InvokeFromStateMachine", {
       principal: new iam.ServicePrincipal("states.amazonaws.com"),
@@ -207,6 +287,27 @@ export class WorkflowConstruct extends Construct {
             this.generatePostWithoutContextStateMachine.stateMachineArn,
           POST_WITH_CONTEXT_STATE_MACHINE_ARN:
             this.generatePostWithContextStateMachine.stateMachineArn,
+          TEXT_TO_VIDEO_STATE_MACHINE_ARN:
+            this.textToVideoStateMachine.stateMachineArn,
+        },
+      }
+    );
+
+    // Create a Lambda function to invoke the text-to-video workflow
+    this.invokeTextToVideoFunction = new NodejsFunction(
+      this,
+      "InvokeTextToVideoFunction",
+      {
+        entry: "./src/invokeTextToVideoWorkflow.ts",
+        handler: "handler",
+        runtime: lambda.Runtime.NODEJS_20_X,
+        memorySize: DEFAULT_LAMBDA_MEMORY_SIZE,
+        logRetention: cdk.aws_logs.RetentionDays.ONE_WEEK,
+        tracing: lambda.Tracing.ACTIVE,
+        environment: {
+          ...COMMON_LAMBDA_ENV_VARS,
+          TEXT_TO_VIDEO_STATE_MACHINE_ARN:
+            this.textToVideoStateMachine.stateMachineArn,
         },
       }
     );
@@ -222,7 +323,21 @@ export class WorkflowConstruct extends Construct {
         resources: [
           this.generatePostWithoutContextStateMachine.stateMachineArn,
           this.generatePostWithContextStateMachine.stateMachineArn,
+          this.textToVideoStateMachine.stateMachineArn,
         ],
+        effect: iam.Effect.ALLOW,
+      })
+    );
+
+    // Grant the text-to-video Lambda function permissions to start, describe, and stop the state machine execution
+    this.invokeTextToVideoFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "states:StartExecution",
+          "states:DescribeExecution",
+          "states:StopExecution",
+        ],
+        resources: [this.textToVideoStateMachine.stateMachineArn],
         effect: iam.Effect.ALLOW,
       })
     );
@@ -232,7 +347,10 @@ export class WorkflowConstruct extends Construct {
       this.generatePostAgentFunction,
       this.generatePostWithContextStateMachine,
       this.generatePostWithoutContextStateMachine,
+      this.textToVideoStateMachine,
+      this.mediaBucket,
       this.startWorkflowFunction,
+      this.invokeTextToVideoFunction,
     ].forEach((resource) => {
       Object.entries(COMMON_TAGS).forEach(([key, value]) => {
         cdk.Tags.of(resource).add(key, value);
