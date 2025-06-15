@@ -9,6 +9,7 @@ import { AuthConstruct } from "./constructs/auth-construct";
 import { WorkflowConstruct } from "./constructs/workflow-construct";
 import { EventsConstruct } from "./constructs/events-construct";
 import { AppSyncConstruct } from "./constructs/appsync-construct";
+import { MediaProcessingConstruct } from "./constructs/media-processing-construct";
 
 /**
  * Stack for the Scheduled Posts application
@@ -82,6 +83,39 @@ export class SchedulePostsStack extends cdk.Stack {
       postsTable: databaseConstruct.postsTable,
     });
 
+    // Create the media processing construct
+    const mediaProcessingConstruct = new MediaProcessingConstruct(
+      this,
+      "MediaProcessingConstruct",
+      {
+        postMediaBucket: workflowConstruct.mediaBucket,
+        postsTable: databaseConstruct.postsTable,
+        extractTextHandlerFunction:
+          workflowConstruct.extractTextHandlerFunction,
+        extractTextStateMachine:
+          workflowConstruct.extractTextFromFileStateMachine,
+        transcribeMediaStateMachine:
+          workflowConstruct.transcribeMediaStateMachine,
+      }
+    );
+
+    // Set up the state machine ARN for the queue processor function
+    mediaProcessingConstruct.queueProcessorFunction.addEnvironment(
+      "STATE_MACHINE_ARN",
+      workflowConstruct.textToVideoStateMachine.stateMachineArn
+    );
+
+    // Grant the queue processor function permission to start the state machines
+    workflowConstruct.textToVideoStateMachine.grantStartExecution(
+      mediaProcessingConstruct.queueProcessorFunction
+    );
+    workflowConstruct.extractTextFromFileStateMachine.grantStartExecution(
+      mediaProcessingConstruct.queueProcessorFunction
+    );
+    workflowConstruct.transcribeMediaStateMachine.grantStartExecution(
+      mediaProcessingConstruct.queueProcessorFunction
+    );
+
     // Create the AppSync construct
     const appSyncConstruct = new AppSyncConstruct(this, "AppSyncConstruct", {
       postsTable: databaseConstruct.postsTable,
@@ -112,6 +146,12 @@ export class SchedulePostsStack extends cdk.Stack {
     new cdk.CfnOutput(this, "GraphQLAPIURL", {
       value: appSyncConstruct.api.graphqlUrl,
       description: "The URL of the GraphQL API",
+    });
+
+    // Output the media bucket name
+    new cdk.CfnOutput(this, "MediaBucketName", {
+      value: workflowConstruct.mediaBucket.bucketName,
+      description: "The name of the S3 bucket for media uploads",
     });
 
     new cdk.CfnOutput(this, "GraphQLAPIKey", {

@@ -42,6 +42,21 @@ export class WorkflowConstruct extends Construct {
   public readonly textToVideoStateMachine: sfn.StateMachine;
 
   /**
+   * The Step Function state machine for extracting text from files
+   */
+  public readonly extractTextFromFileStateMachine: sfn.StateMachine;
+
+  /**
+   * The Step Function state machine for transcribing media files
+   */
+  public readonly transcribeMediaStateMachine: sfn.StateMachine;
+
+  /**
+   * The Lambda function for handling extracted text
+   */
+  public readonly extractTextHandlerFunction: PythonFunction;
+
+  /**
    * The S3 bucket for storing generated videos and thumbnails
    */
   public readonly mediaBucket: s3.Bucket;
@@ -99,6 +114,25 @@ export class WorkflowConstruct extends Construct {
       }
     );
 
+    // Create the Lambda function for handling extracted text
+    this.extractTextHandlerFunction = new PythonFunction(
+      this,
+      "ExtractTextHandlerFunction",
+      {
+        entry: "./src/media_processing/",
+        index: "extract_text_handler.py",
+        handler: "lambda_handler",
+        runtime: lambda.Runtime.PYTHON_3_12,
+        memorySize: DEFAULT_LAMBDA_MEMORY_SIZE,
+        timeout: cdk.Duration.minutes(5),
+        logRetention: cdk.aws_logs.RetentionDays.ONE_WEEK,
+        tracing: lambda.Tracing.ACTIVE,
+        environment: {
+          ...COMMON_LAMBDA_ENV_VARS,
+        },
+      }
+    );
+
     // Grant permissions to put events on the event bus
     eventBus.grantPutEventsTo(this.generatePostAgentFunction);
 
@@ -145,6 +179,8 @@ export class WorkflowConstruct extends Construct {
 
     // Grant permission to access the media bucket
     this.mediaBucket.grantReadWrite(stateMachineRole);
+
+    this.mediaBucket.grantReadWrite(this.extractTextHandlerFunction);
 
     // Grant permission to access the DynamoDB table
     postsTable.grantReadWriteData(stateMachineRole);
@@ -270,6 +306,121 @@ export class WorkflowConstruct extends Construct {
       sourceArn: this.generatePostWithContextStateMachine.stateMachineArn,
     });
 
+    // Load the ASL definition for the extract text from file workflow
+    const aslExtractTextFilePath = path.join(
+      __dirname,
+      "../../workflow/extract_text_from_file_workflow.asl.json"
+    );
+    const extractTextDefinitionJson = JSON.parse(
+      readFileSync(aslExtractTextFilePath, "utf8")
+    );
+
+    // Load the ASL definition for the transcribe media workflow
+    const aslTranscribeMediaFilePath = path.join(
+      __dirname,
+      "../../workflow/transcribe_media_workflow.asl.json"
+    );
+    const transcribeMediaDefinitionJson = JSON.parse(
+      readFileSync(aslTranscribeMediaFilePath, "utf8")
+    );
+
+    // Grant Textract permissions to the state machine role
+    // Grant Textract permissions to the state machine role
+    stateMachineRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "textract:DetectDocumentText",
+          "textract:StartDocumentTextDetection",
+          "textract:GetDocumentTextDetection",
+        ],
+        resources: ["*"],
+        effect: iam.Effect.ALLOW,
+      })
+    );
+
+    // Grant Transcribe permissions to the state machine role
+    stateMachineRole.addToPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "transcribe:StartTranscriptionJob",
+          "transcribe:GetTranscriptionJob",
+        ],
+        resources: ["*"],
+        effect: iam.Effect.ALLOW,
+      })
+    );
+
+    // Create the state machine for extracting text from files
+    this.extractTextFromFileStateMachine = new sfn.StateMachine(
+      this,
+      "ExtractTextFromFileStateMachine",
+      {
+        stateMachineName: "ExtractTextFromFileStateMachine",
+        role: stateMachineRole,
+        definitionBody: sfn.DefinitionBody.fromString(
+          JSON.stringify(
+            this.replaceDefinitionPlaceholders(extractTextDefinitionJson, {
+              FUNCTION_ARN: this.extractTextHandlerFunction.functionArn,
+            })
+          )
+        ),
+        tracingEnabled: true,
+        logs: {
+          destination: new cdk.aws_logs.LogGroup(this, "ExtractTextLogGroup", {
+            logGroupName: "/aws/stepfunctions/ExtractTextFromFileStateMachine",
+            retention: DEFAULT_LOG_RETENTION_DAYS,
+            removalPolicy: cdk.RemovalPolicy.DESTROY,
+          }),
+          level: sfn.LogLevel.ALL,
+        },
+      }
+    );
+
+    // Create the state machine for transcribing media files
+    this.transcribeMediaStateMachine = new sfn.StateMachine(
+      this,
+      "TranscribeMediaStateMachine",
+      {
+        stateMachineName: "TranscribeMediaStateMachine",
+        role: stateMachineRole,
+        definitionBody: sfn.DefinitionBody.fromString(
+          JSON.stringify(
+            this.replaceDefinitionPlaceholders(transcribeMediaDefinitionJson, {
+              FUNCTION_ARN: this.extractTextHandlerFunction.functionArn,
+            })
+          )
+        ),
+        tracingEnabled: true,
+        logs: {
+          destination: new cdk.aws_logs.LogGroup(
+            this,
+            "TranscribeMediaLogGroup",
+            {
+              logGroupName: "/aws/stepfunctions/TranscribeMediaStateMachine",
+              retention: DEFAULT_LOG_RETENTION_DAYS,
+              removalPolicy: cdk.RemovalPolicy.DESTROY,
+            }
+          ),
+          level: sfn.LogLevel.ALL,
+        },
+      }
+    );
+
+    // Grant the state machine permission to invoke the extract text handler function
+    this.extractTextHandlerFunction.addPermission("InvokeFromStateMachine", {
+      principal: new iam.ServicePrincipal("states.amazonaws.com"),
+      sourceArn: this.extractTextFromFileStateMachine.stateMachineArn,
+    });
+
+    // Grant the state machine permission to invoke the extract text handler function from the transcribe media workflow
+    this.extractTextHandlerFunction.addPermission(
+      "InvokeFromTranscribeStateMachine",
+      {
+        principal: new iam.ServicePrincipal("states.amazonaws.com"),
+        sourceArn: this.transcribeMediaStateMachine.stateMachineArn,
+      }
+    );
+
     // Create a Lambda function to start the workflows
     this.startWorkflowFunction = new NodejsFunction(
       this,
@@ -348,6 +499,9 @@ export class WorkflowConstruct extends Construct {
       this.generatePostWithContextStateMachine,
       this.generatePostWithoutContextStateMachine,
       this.textToVideoStateMachine,
+      this.extractTextFromFileStateMachine,
+      this.transcribeMediaStateMachine,
+      this.extractTextHandlerFunction,
       this.mediaBucket,
       this.startWorkflowFunction,
       this.invokeTextToVideoFunction,

@@ -9,6 +9,7 @@ import { KnowledgeBaseBase } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk
 import { StateMachine } from "aws-cdk-lib/aws-stepfunctions";
 import { PythonFunction } from "@aws-cdk/aws-lambda-python-alpha/lib/function";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs/lib/function";
+import * as s3 from "aws-cdk-lib/aws-s3";
 
 /**
  * Properties for the AuthConstruct
@@ -103,6 +104,33 @@ export interface EventsConstructProps {
    * The Lambda function for scheduling posts
    */
   schedulePostsFunction: lambda.Function;
+}
+
+/**
+ * Properties for the MediaProcessingConstruct
+ */
+export interface MediaProcessingConstructProps {
+  /**
+   * The S3 bucket for media uploads
+   */
+  postMediaBucket: s3.Bucket;
+
+  /**
+   * The DynamoDB table for posts
+   */
+  postsTable: dynamodb.Table;
+
+  /**
+   * The Step Functions state machine for extracting text from files
+   */
+  extractTextStateMachine: StateMachine;
+
+  /**
+   * The Step Functions state machine for transcribing media files
+   */
+  transcribeMediaStateMachine: StateMachine;
+
+  extractTextHandlerFunction: PythonFunction;
 }
 
 /**

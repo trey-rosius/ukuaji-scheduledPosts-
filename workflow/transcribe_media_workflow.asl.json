@@ -1,0 +1,94 @@
+{
+  "Comment": "Workflow to transcribe audio from media files using Amazon Transcribe and send results to a Lambda function.",
+  "StartAt": "StartTranscriptionJob",
+  "States": {
+    "StartTranscriptionJob": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:transcribe:startTranscriptionJob",
+      "Next": "WaitForTranscription",
+      "QueryLanguage": "JSONata",
+      "Arguments": {
+        "TranscriptionJobName": "{% 'transcription-' & $states.input.filename & '-' & $toMillis($now()) %}",
+        "LanguageCode": "en-US",
+        "Media": {
+          "MediaFileUri": "{% 's3://' & $states.input.bucket_name & '/' & $states.input.object_key %}"
+        },
+        "OutputBucketName": "{% $states.input.bucket_name %}",
+        "OutputKey": "{% 'transcriptions/' & $states.input.filename & '.json' %}"
+      },
+      "Assign": {
+        "TranscriptionJobName": "{% $states.result.TranscriptionJob.TranscriptionJobName %}"
+      }
+    },
+    "WaitForTranscription": {
+      "Type": "Wait",
+      "Seconds": 10,
+      "Next": "GetTranscriptionJob",
+      "QueryLanguage": "JSONata"
+    },
+    "GetTranscriptionJob": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:transcribe:getTranscriptionJob",
+      "Next": "IsTranscriptionComplete",
+      "QueryLanguage": "JSONata",
+      "Arguments": {
+        "TranscriptionJobName": "{% $TranscriptionJobName %}"
+      }
+    },
+    "IsTranscriptionComplete": {
+      "Type": "Choice",
+      "Default": "WaitForTranscription",
+      "Choices": [
+        {
+          "Next": "Pass",
+          "Condition": "{% $states.input.TranscriptionJob.TranscriptionJobStatus = \"COMPLETED\" %}"
+        },
+        {
+          "Next": "TranscriptionFailed",
+          "Condition": "{% $states.input.TranscriptionJob.TranscriptionJobStatus = \"FAILED\" %}"
+        }
+      ],
+      "QueryLanguage": "JSONata"
+    },
+    "Pass": {
+      "Type": "Pass",
+      "Next": "InvokeExtractTextHandler",
+      "Output": {
+        "bucket": "{% $states.context.Execution.Input.bucket_name %}",
+        "key": "{% $states.context.Execution.Input.object_key %}",
+        "transcriptionFileUri": "{% $states.input.TranscriptionJob.Transcript.TranscriptFileUri  %}"
+      }
+    },
+    "TranscriptionFailed": {
+      "Type": "Fail",
+      "Cause": "Transcription job failed.",
+      "Error": "TranscriptionJobFailed",
+      "QueryLanguage": "JSONata"
+    },
+    "InvokeExtractTextHandler": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2,
+          "JitterStrategy": "FULL"
+        }
+      ],
+      "End": true,
+      "QueryLanguage": "JSONata",
+      "Arguments": {
+        "Payload": "{% $states.input %}",
+        "FunctionName": "${FUNCTION_ARN}"
+      }
+    }
+  },
+  "QueryLanguage": "JSONata"
+}
