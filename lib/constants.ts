@@ -64,6 +64,9 @@ export const BEDROCK_MODELS = {
 export const TABLE_INDEXES = {
   ALL_USERS: "getAllUsers",
   ALL_POSTS: "getAllPosts",
+  ALL_USER_POSTS: "getAllUserPosts",
+  USER_GALLERY: "getUserGallery",
+  ALL_PROMPTS: "getAllPrompts",
   USER_BY_EMAIL: "getUserByEmail",
 };
 
@@ -77,5 +80,11 @@ export const TABLE_ATTRIBUTES = {
   GSI1_SORT_KEY: "GSI1SK",
   GSI2_PARTITION_KEY: "GSI2PK",
   GSI2_SORT_KEY: "GSI2SK",
+  GSI3_PARTITION_KEY: "GSI3PK",
+  GSI3_SORT_KEY: "GSI3SK",
+  GSI4_PARTITION_KEY: "GSI4PK",
+  GSI4_SORT_KEY: "GSI4SK",
+  GSI5_PARTITION_KEY: "GSI5PK",
+  GSI5_SORT_KEY: "GSI5SK",
   EMAIL: "email",
 };

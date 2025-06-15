@@ -15,6 +15,11 @@ type Query {
     @aws_api_key
   replaceImageBackground(input: ReplaceImageBackgroundInput!): [String!]!
     @aws_api_key
+
+  # Prompt templates queries
+  getPromptTemplate(id: String!): PromptTemplate! @aws_api_key
+  getAllPromptTemplates(limit: Int!, nextToken: String): PromptTemplatesResult!
+    @aws_api_key
 }
 input ImageGuidedGenerationInput @aws_api_key {
   prompt: String!
@@ -54,6 +59,13 @@ type Mutation {
     @aws_api_key
 
   generateTextToVideo(input: TextToVideoInput!): Boolean! @aws_api_key
+
+  # Prompt templates mutations
+  createPromptTemplate(input: CreatePromptTemplateInput!): PromptTemplate!
+    @aws_api_key
+  updatePromptTemplate(input: UpdatePromptTemplateInput!): PromptTemplate!
+    @aws_api_key
+  deletePromptTemplate(id: String!): Boolean! @aws_api_key
 }
 
 input TextToVideoInput @aws_api_key {
@@ -210,6 +222,10 @@ type Subscription {
   onGeneratedImagesResponse: GeneratedImageResponse
     @aws_api_key
     @aws_subscribe(mutations: ["generateImagesResponse"])
+
+  # Prompt templates subscription
+  createdPromptTemplate: PromptTemplate
+    @aws_subscribe(mutations: ["createPromptTemplate"])
 }
 type PostsResult @aws_api_key {
   items: [Post!]!
@@ -219,4 +235,29 @@ type PostsResult @aws_api_key {
 enum USERTYPE {
   ADMIN
   MEMBER
+}
+
+# Prompt template types
+type PromptTemplate @aws_api_key {
+  id: String!
+  name: String!
+  content: String!
+  createdOn: AWSTimestamp!
+  updatedOn: AWSTimestamp
+}
+
+input CreatePromptTemplateInput @aws_api_key {
+  name: String!
+  content: String!
+}
+
+input UpdatePromptTemplateInput @aws_api_key {
+  id: String!
+  name: String!
+  content: String!
+}
+
+type PromptTemplatesResult @aws_api_key {
+  items: [PromptTemplate!]!
+  nextToken: String
 }

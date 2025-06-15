@@ -133,6 +133,12 @@ export class WorkflowConstruct extends Construct {
       }
     );
 
+    this.extractTextHandlerFunction.addEnvironment(
+      "STRANDS_KNOWLEDGE_BASE_ID",
+      knowledgeBase.knowledgeBaseId
+    );
+    knowledgeBase.grantRetrieveAndGenerate(this.extractTextHandlerFunction);
+
     // Grant permissions to put events on the event bus
     eventBus.grantPutEventsTo(this.generatePostAgentFunction);
 

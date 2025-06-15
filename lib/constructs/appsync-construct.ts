@@ -407,6 +407,87 @@ export function response(ctx) {
       runtime: appsync.FunctionRuntime.JS_1_0_0,
     });
 
+    // Create pipeline resolvers for prompt templates
+    const formatPromptTemplateFunction = new appsync.AppsyncFunction(
+      this,
+      "FormatPromptTemplateInput",
+      {
+        api: this.api,
+        dataSource: noneDs,
+        name: "formatPromptTemplateInput",
+        code: appsync.Code.fromAsset(
+          "./resolvers/promptTemplates/formatPromptTemplateInput.js"
+        ),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      }
+    );
+
+    const createPromptTemplateFunction = new appsync.AppsyncFunction(
+      this,
+      "CreatePromptTemplateFunction",
+      {
+        api: this.api,
+        dataSource: dbDataSource,
+        name: "createPromptTemplateFunction",
+        code: appsync.Code.fromAsset(
+          "./resolvers/promptTemplates/createPromptTemplate.js"
+        ),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      }
+    );
+
+    // Create prompt template resolvers
+    this.api.createResolver("CreatePromptTemplate", {
+      typeName: "Mutation",
+      code: appsync.Code.fromAsset("./resolvers/pipeline/default.js"),
+      fieldName: "createPromptTemplate",
+      pipelineConfig: [
+        formatPromptTemplateFunction,
+        createPromptTemplateFunction,
+      ],
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
+    this.api.createResolver("GetPromptTemplate", {
+      typeName: "Query",
+      fieldName: "getPromptTemplate",
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset(
+        "./resolvers/promptTemplates/getPromptTemplate.js"
+      ),
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
+    this.api.createResolver("GetAllPromptTemplates", {
+      typeName: "Query",
+      fieldName: "getAllPromptTemplates",
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset(
+        "./resolvers/promptTemplates/getAllPromptTemplates.js"
+      ),
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
+    this.api.createResolver("UpdatePromptTemplate", {
+      typeName: "Mutation",
+      fieldName: "updatePromptTemplate",
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset(
+        "./resolvers/promptTemplates/updatePromptTemplate.js"
+      ),
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
+    this.api.createResolver("DeletePromptTemplate", {
+      typeName: "Mutation",
+      fieldName: "deletePromptTemplate",
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset(
+        "./resolvers/promptTemplates/deletePromptTemplate.js"
+      ),
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
     this.api.createResolver("UpdateUserAccount", {
       typeName: "Mutation",
       fieldName: "updateUserAccount",
