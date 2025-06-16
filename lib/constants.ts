@@ -68,6 +68,8 @@ export const TABLE_INDEXES = {
   USER_GALLERY: "getUserGallery",
   ALL_PROMPTS: "getAllPrompts",
   USER_BY_EMAIL: "getUserByEmail",
+  ALL_SUBSCRIPTIONS: "getAllSubscriptions",
+  USER_SUBSCRIPTIONS: "getUserSubscriptions",
 };
 
 /**
@@ -86,5 +88,43 @@ export const TABLE_ATTRIBUTES = {
   GSI4_SORT_KEY: "GSI4SK",
   GSI5_PARTITION_KEY: "GSI5PK",
   GSI5_SORT_KEY: "GSI5SK",
+  GSI6_PARTITION_KEY: "GSI6PK",
+  GSI6_SORT_KEY: "GSI6SK",
   EMAIL: "email",
+};
+
+/**
+ * Subscription tiers
+ */
+export const SUBSCRIPTION_TIERS = {
+  BASIC: "BASIC",
+  STANDARD: "STANDARD",
+  PREMIUM: "PREMIUM",
+};
+
+/**
+ * Subscription features by tier
+ */
+export const SUBSCRIPTION_FEATURES = {
+  [SUBSCRIPTION_TIERS.BASIC]: {
+    postsPerMonth: 10,
+    mediaStorageGB: 1,
+    aiGenerationCredits: 50,
+    supportLevel: "Email",
+    price: 9.99,
+  },
+  [SUBSCRIPTION_TIERS.STANDARD]: {
+    postsPerMonth: 50,
+    mediaStorageGB: 5,
+    aiGenerationCredits: 200,
+    supportLevel: "Priority Email",
+    price: 19.99,
+  },
+  [SUBSCRIPTION_TIERS.PREMIUM]: {
+    postsPerMonth: 100,
+    mediaStorageGB: 20,
+    aiGenerationCredits: 500,
+    supportLevel: "24/7 Chat",
+    price: 39.99,
+  },
 };

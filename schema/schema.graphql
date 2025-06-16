@@ -20,6 +20,19 @@ type Query {
   getPromptTemplate(id: String!): PromptTemplate! @aws_api_key
   getAllPromptTemplates(limit: Int!, nextToken: String): PromptTemplatesResult!
     @aws_api_key
+
+  # Subscription queries
+  getSubscription(id: String!): SubscriptionPlan!
+    @aws_cognito_user_pools
+    @aws_api_key
+  getUserSubscription(userId: String!): SubscriptionPlan
+    @aws_cognito_user_pools
+    @aws_api_key
+  getAllSubscriptions(limit: Int!, nextToken: String): SubscriptionsResult!
+    @aws_cognito_user_pools
+    @aws_api_key
+  getSubscriptionFeatures(tier: SUBSCRIPTION_TIER!): SubscriptionFeatures!
+    @aws_api_key
 }
 input ImageGuidedGenerationInput @aws_api_key {
   prompt: String!
@@ -66,6 +79,17 @@ type Mutation {
   updatePromptTemplate(input: UpdatePromptTemplateInput!): PromptTemplate!
     @aws_api_key
   deletePromptTemplate(id: String!): Boolean! @aws_api_key
+
+  # Subscription mutations
+  createSubscription(input: CreateSubscriptionInput!): SubscriptionPlan!
+    @aws_cognito_user_pools
+    @aws_api_key
+  updateSubscription(input: UpdateSubscriptionInput!): SubscriptionPlan!
+    @aws_cognito_user_pools
+    @aws_api_key
+  cancelSubscription(id: String!, userId: String!): Boolean!
+    @aws_cognito_user_pools
+    @aws_api_key
 }
 
 input TextToVideoInput @aws_api_key {
@@ -146,6 +170,7 @@ type User @aws_cognito_user_pools @aws_api_key {
   email: AWSEmail!
   profilePicUrl: String!
   profilePicKey: String!
+  subscription: SubscriptionPlan
   createdOn: AWSTimestamp
   updatedOn: AWSTimestamp
 }
@@ -226,6 +251,14 @@ type Subscription {
   # Prompt templates subscription
   createdPromptTemplate: PromptTemplate
     @aws_subscribe(mutations: ["createPromptTemplate"])
+
+  # User subscription events
+  createdSubscription: SubscriptionPlan
+    @aws_api_key
+    @aws_subscribe(mutations: ["createSubscription"])
+  updatedSubscription: SubscriptionPlan
+    @aws_api_key
+    @aws_subscribe(mutations: ["updateSubscription"])
 }
 type PostsResult @aws_api_key {
   items: [Post!]!
@@ -235,6 +268,51 @@ type PostsResult @aws_api_key {
 enum USERTYPE {
   ADMIN
   MEMBER
+}
+
+enum SUBSCRIPTION_TIER {
+  BASIC
+  STANDARD
+  PREMIUM
+}
+
+type SubscriptionFeatures {
+  postsPerMonth: Int!
+  mediaStorageGB: Int!
+  aiGenerationCredits: Int!
+  supportLevel: String!
+}
+
+type SubscriptionPlan {
+  id: String!
+  userId: String!
+  tier: SUBSCRIPTION_TIER!
+  features: SubscriptionFeatures!
+  startDate: AWSTimestamp!
+  endDate: AWSTimestamp!
+  autoRenew: Boolean!
+  price: Float!
+  status: String!
+  createdOn: AWSTimestamp!
+  updatedOn: AWSTimestamp
+}
+
+type SubscriptionsResult {
+  items: [SubscriptionPlan!]!
+  nextToken: String
+}
+
+input CreateSubscriptionInput {
+  userId: String!
+  tier: SUBSCRIPTION_TIER!
+  autoRenew: Boolean!
+}
+
+input UpdateSubscriptionInput {
+  id: String!
+  userId: String!
+  tier: SUBSCRIPTION_TIER
+  autoRenew: Boolean
 }
 
 # Prompt template types

@@ -13,6 +13,7 @@ import {
   DEFAULT_LOG_RETENTION_DAYS,
   DEFAULT_API_KEY_EXPIRATION_DAYS,
   BEDROCK_MODELS,
+  SUBSCRIPTION_FEATURES,
 } from "../constants";
 
 /**
@@ -435,7 +436,36 @@ export function response(ctx) {
         runtime: appsync.FunctionRuntime.JS_1_0_0,
       }
     );
+    /*
+    // Create pipeline resolvers for subscriptions
+    const formatSubscriptionFunction = new appsync.AppsyncFunction(
+      this,
+      "FormatSubscriptionInput",
+      {
+        api: this.api,
+        dataSource: noneDs,
+        name: "formatSubscriptionInput",
+        code: appsync.Code.fromAsset(
+          "./resolvers/subscriptions/formatSubscriptionInput.js"
+        ),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      }
+    );
 
+    const createSubscriptionFunction = new appsync.AppsyncFunction(
+      this,
+      "CreateSubscriptionFunction",
+      {
+        api: this.api,
+        dataSource: dbDataSource,
+        name: "createSubscriptionFunction",
+        code: appsync.Code.fromAsset(
+          "./resolvers/subscriptions/createSubscription.js"
+        ),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      }
+    );
+*/
     // Create prompt template resolvers
     this.api.createResolver("CreatePromptTemplate", {
       typeName: "Mutation",
@@ -447,7 +477,76 @@ export function response(ctx) {
       ],
       runtime: appsync.FunctionRuntime.JS_1_0_0,
     });
+    /*
+    // Create subscription resolvers
+    this.api.createResolver("CreateSubscription", {
+      typeName: "Mutation",
+      code: appsync.Code.fromAsset("./resolvers/pipeline/default.js"),
+      fieldName: "createSubscription",
+      pipelineConfig: [formatSubscriptionFunction, createSubscriptionFunction],
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
 
+    this.api.createResolver("GetSubscription", {
+      typeName: "Query",
+      fieldName: "getSubscription",
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset(
+        "./resolvers/subscriptions/getSubscription.js"
+      ),
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
+    this.api.createResolver("GetUserSubscription", {
+      typeName: "Query",
+      fieldName: "getUserSubscription",
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset(
+        "./resolvers/subscriptions/getUserSubscription.js"
+      ),
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
+    this.api.createResolver("GetAllSubscriptions", {
+      typeName: "Query",
+      fieldName: "getAllSubscriptions",
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset(
+        "./resolvers/subscriptions/getAllSubscriptions.js"
+      ),
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
+    this.api.createResolver("GetSubscriptionFeatures", {
+      typeName: "Query",
+      fieldName: "getSubscriptionFeatures",
+      dataSource: noneDs,
+      code: appsync.Code.fromAsset(
+        "./resolvers/subscriptions/getSubscriptionFeatures.js"
+      ),
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
+    this.api.createResolver("UpdateSubscription", {
+      typeName: "Mutation",
+      fieldName: "updateSubscription",
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset(
+        "./resolvers/subscriptions/updateSubscription.js"
+      ),
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+
+    this.api.createResolver("CancelSubscription", {
+      typeName: "Mutation",
+      fieldName: "cancelSubscription",
+      dataSource: dbDataSource,
+      code: appsync.Code.fromAsset(
+        "./resolvers/subscriptions/cancelSubscription.js"
+      ),
+      runtime: appsync.FunctionRuntime.JS_1_0_0,
+    });
+*/
     this.api.createResolver("GetPromptTemplate", {
       typeName: "Query",
       fieldName: "getPromptTemplate",

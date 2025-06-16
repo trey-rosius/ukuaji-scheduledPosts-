@@ -99,6 +99,34 @@ export class DatabaseConstruct extends Construct {
       projectionType: dynamodb.ProjectionType.ALL,
     });
 
+    // Add global secondary index for getting all subscriptions
+    this.postsTable.addGlobalSecondaryIndex({
+      indexName: TABLE_INDEXES.ALL_SUBSCRIPTIONS,
+      partitionKey: {
+        name: TABLE_ATTRIBUTES.GSI5_PARTITION_KEY,
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: TABLE_ATTRIBUTES.GSI5_SORT_KEY,
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+    /*
+    // Add global secondary index for getting user subscriptions
+    this.postsTable.addGlobalSecondaryIndex({
+      indexName: TABLE_INDEXES.USER_SUBSCRIPTIONS,
+      partitionKey: {
+        name: TABLE_ATTRIBUTES.GSI6_PARTITION_KEY,
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: TABLE_ATTRIBUTES.GSI6_SORT_KEY,
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+*/
     // Add global secondary index for getting users by email
     this.postsTable.addGlobalSecondaryIndex({
       indexName: TABLE_INDEXES.USER_BY_EMAIL,
