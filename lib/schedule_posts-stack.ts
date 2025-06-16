@@ -10,6 +10,7 @@ import { WorkflowConstruct } from "./constructs/workflow-construct";
 import { EventsConstruct } from "./constructs/events-construct";
 import { AppSyncConstruct } from "./constructs/appsync-construct";
 import { MediaProcessingConstruct } from "./constructs/media-processing-construct";
+import { WafConstruct } from "./constructs/waf-construct";
 
 /**
  * Stack for the Scheduled Posts application
@@ -129,6 +130,14 @@ export class SchedulePostsStack extends cdk.Stack {
       userPool: authConstruct.userPool,
     });
 
+    // Create the WAF construct to protect the AppSync API
+    const wafConstruct = new WafConstruct(this, "WafConstruct", {
+      api: appSyncConstruct.api,
+      webAclName: "ScheduledPostsApiProtection",
+      rateLimit: 1500, // Allow 1500 requests per 5-minute window
+      enableManagedRules: true, // Enable AWS managed rule sets
+    });
+
     // Create the events construct after AppSync is created
     const eventsConstruct = new EventsConstruct(this, "EventsConstruct", {
       postsTable: databaseConstruct.postsTable,
@@ -142,10 +151,15 @@ export class SchedulePostsStack extends cdk.Stack {
       appSyncConstruct.schedulePostsFunction
     );
 
-    // Output the API URL and API Key
+    // Output the API URL, API Key, and WAF WebACL ID
     new cdk.CfnOutput(this, "GraphQLAPIURL", {
       value: appSyncConstruct.api.graphqlUrl,
       description: "The URL of the GraphQL API",
+    });
+
+    new cdk.CfnOutput(this, "WafWebAclId", {
+      value: wafConstruct.webAcl.attrId,
+      description: "The ID of the WAF WebACL protecting the GraphQL API",
     });
 
     // Output the media bucket name

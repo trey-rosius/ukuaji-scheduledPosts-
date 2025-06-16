@@ -75,7 +75,7 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::dynamodb:putItem",
       "Arguments": {
-        "TableName": "${DYNAMODB_TABLE_ARN}",
+        "TableName": "arn:aws:dynamodb:us-east-1:132260253285:table/ScheduledPostsTable",
         "Item": {
           "PK": {
             "S": "{% 'USER#' & $userId %}"
@@ -86,14 +86,14 @@
           "mediaType": {
             "S": "VIDEO"
           },
+          "s3BucketUriPlusKey": {
+            "S": "{% $states.input.S3Bucket & '/output.mp4' %}"
+          },
           "userId": {
             "S": "{% $userId %}"
           },
           "folder": {
             "S": "{% $folder %}"
-          },
-          "thumbnail": {
-            "S": "output.0000000.jpg"
           },
           "video": {
             "S": "output.mp4"

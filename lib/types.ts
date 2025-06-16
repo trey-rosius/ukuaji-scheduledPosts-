@@ -5,6 +5,7 @@ import * as events from "aws-cdk-lib/aws-events";
 import * as iam from "aws-cdk-lib/aws-iam";
 import * as appsync from "aws-cdk-lib/aws-appsync";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as waf from "aws-cdk-lib/aws-wafv2";
 import { KnowledgeBaseBase } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock";
 import { StateMachine } from "aws-cdk-lib/aws-stepfunctions";
 import { PythonFunction } from "@aws-cdk/aws-lambda-python-alpha/lib/function";
@@ -175,4 +176,32 @@ export interface AppSyncConstructProps {
    * The Lambda function for invoking the text-to-video workflow
    */
   invokeTextToVideoFunction: NodejsFunction;
+}
+
+/**
+ * Properties for the WafConstruct
+ */
+export interface WafConstructProps {
+  /**
+   * The AppSync GraphQL API to protect
+   */
+  api: appsync.GraphqlApi;
+
+  /**
+   * The name of the WAF WebACL
+   * @default "GraphQLApiProtection"
+   */
+  webAclName?: string;
+
+  /**
+   * The rate limit for requests per 5-minute window
+   * @default 1000
+   */
+  rateLimit?: number;
+
+  /**
+   * Whether to enable AWS managed rule sets
+   * @default true
+   */
+  enableManagedRules?: boolean;
 }
