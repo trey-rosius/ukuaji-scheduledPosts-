@@ -67,7 +67,7 @@ export class AppSyncConstruct extends Construct {
 
     // Create the AppSync API
     this.api = new appsync.GraphqlApi(this, "Api", {
-      name: "ScheduledPostsApi",
+      name: "SchedulePostsAPI",
       definition: appsync.Definition.fromFile("schema/schema.graphql"),
       authorizationConfig: {
         defaultAuthorization: {

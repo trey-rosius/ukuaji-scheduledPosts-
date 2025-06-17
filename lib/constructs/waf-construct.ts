@@ -161,41 +161,44 @@ export class WafConstruct extends Construct {
       },
     });
 
-    // Rule #4: Custom rule to block requests with excessive query depth
-    // This is implemented as a regex pattern match rule that looks for many nested curly braces
-    // which is a simple heuristic for detecting deeply nested GraphQL queries
-    rules.push({
-      name: "GraphQLQueryDepthLimit",
-      priority: 60,
-      statement: {
-        regexPatternSetReferenceStatement: {
-          arn: new waf.CfnRegexPatternSet(this, "NestedQueryPatterns", {
-            regularExpressionList: [
-              // Pattern to detect deeply nested queries (more than 7 levels deep)
-              "\\{[^\\{\\}]*\\{[^\\{\\}]*\\{[^\\{\\}]*\\{[^\\{\\}]*\\{[^\\{\\}]*\\{[^\\{\\}]*\\{[^\\{\\}]*\\{[^\\{\\}]*\\{",
-            ],
-            scope: "REGIONAL",
-          }).attrArn,
-          fieldToMatch: {
-            body: {},
-          },
-          textTransformations: [
-            {
-              priority: 0,
-              type: "NONE",
+    // Only add the GraphQLQueryDepthLimit rule if managed rules are enabled
+    if (enableManagedRules) {
+      // Rule #4: Custom rule to block requests with excessive query depth
+      // This is implemented as a regex pattern match rule that looks for many nested curly braces
+      // which is a simple heuristic for detecting deeply nested GraphQL queries
+      rules.push({
+        name: "GraphQLQueryDepthLimit",
+        priority: 60,
+        statement: {
+          regexPatternSetReferenceStatement: {
+            arn: new waf.CfnRegexPatternSet(this, "NestedQueryPatterns", {
+              regularExpressionList: [
+                // Pattern to detect deeply nested queries (more than 7 levels deep)
+                "\\{[^\\{\\}]*\\{[^\\{\\}]*\\{[^\\{\\}]*\\{[^\\{\\}]*\\{[^\\{\\}]*\\{[^\\{\\}]*\\{[^\\{\\}]*\\{[^\\{\\}]*\\{",
+              ],
+              scope: "REGIONAL",
+            }).attrArn,
+            fieldToMatch: {
+              body: {},
             },
-          ],
+            textTransformations: [
+              {
+                priority: 0,
+                type: "NONE",
+              },
+            ],
+          },
         },
-      },
-      action: {
-        block: {},
-      },
-      visibilityConfig: {
-        sampledRequestsEnabled: true,
-        cloudWatchMetricsEnabled: true,
-        metricName: "GraphQLQueryDepthLimit",
-      },
-    });
+        action: {
+          block: {},
+        },
+        visibilityConfig: {
+          sampledRequestsEnabled: true,
+          cloudWatchMetricsEnabled: true,
+          metricName: "GraphQLQueryDepthLimit",
+        },
+      });
+    }
 
     // Create the WebACL
     this.webAcl = new waf.CfnWebACL(this, "WebAcl", {

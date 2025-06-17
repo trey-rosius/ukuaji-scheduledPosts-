@@ -26,11 +26,6 @@ export class AuthConstruct extends Construct {
       userPoolName: props.userPoolName || "ScheduledPostsUserPool",
       selfSignUpEnabled: true,
       accountRecovery: cognito.AccountRecovery.PHONE_AND_EMAIL,
-      userVerification: {
-        emailStyle: cognito.VerificationEmailStyle.CODE,
-        emailSubject: "Verify your email for Scheduled Posts",
-        emailBody: "Thanks for signing up! Your verification code is {####}",
-      },
       autoVerify: {
         email: true,
       },
@@ -48,7 +43,11 @@ export class AuthConstruct extends Construct {
         requireSymbols: true,
         tempPasswordValidity: cdk.Duration.days(3),
       },
-
+      userVerification: {
+        emailStyle: cognito.VerificationEmailStyle.CODE,
+        emailSubject: "Verify your email for Scheduled Posts",
+        emailBody: "Thanks for signing up! Your verification code is {####}",
+      },
       removalPolicy: cdk.RemovalPolicy.RETAIN, // Important for user data
     });
 
@@ -63,6 +62,7 @@ export class AuthConstruct extends Construct {
       refreshTokenValidity: cdk.Duration.days(30),
       accessTokenValidity: cdk.Duration.hours(1),
       idTokenValidity: cdk.Duration.hours(1),
+      authSessionValidity: cdk.Duration.minutes(3),
       enableTokenRevocation: true,
     });
 
