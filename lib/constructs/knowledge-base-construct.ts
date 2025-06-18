@@ -11,6 +11,7 @@ import {
   BedrockFoundationModel,
   ChunkingStrategy,
   S3DataSource,
+  CustomDataSource,
   VectorKnowledgeBase,
 } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock";
 import { PineconeVectorStore } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/pinecone";
@@ -25,9 +26,10 @@ export class KnowledgeBaseConstruct extends Construct {
   public readonly knowledgeBase: VectorKnowledgeBase;
 
   /**
-   * The S3 bucket for knowledge base data
+   * Custom Datasource
    */
-  public readonly dataBucket: s3.Bucket;
+
+  public readonly customDatasource: CustomDataSource;
 
   constructor(
     scope: Construct,
@@ -61,28 +63,14 @@ export class KnowledgeBaseConstruct extends Construct {
         "This knowledge base contains information about scheduled posts and content generation.",
     });
 
-    // Create an S3 bucket for knowledge base data
-    this.dataBucket = new s3.Bucket(this, "DataBucket", {
-      bucketName: bucketName,
-      versioned: false,
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: DEFAULT_REMOVAL_POLICY,
-      autoDeleteObjects: true,
-      enforceSSL: true,
-      serverAccessLogsPrefix: "access-logs/",
-    });
-
-    // Create an S3 data source for the knowledge base
-    new S3DataSource(this, "S3DataSource", {
-      bucket: this.dataBucket,
+    this.customDatasource = new CustomDataSource(this, "customDatasource", {
       knowledgeBase: this.knowledgeBase,
-      dataSourceName: "scheduled-posts-s3-datasource",
+      dataSourceName: "scheduled-posts-custom-datasource",
       chunkingStrategy: ChunkingStrategy.FIXED_SIZE,
     });
 
     // Apply common tags
-    [this.knowledgeBase, this.dataBucket].forEach((resource) => {
+    [this.knowledgeBase, this.customDatasource].forEach((resource) => {
       Object.entries(COMMON_TAGS).forEach(([key, value]) => {
         cdk.Tags.of(resource).add(key, value);
       });

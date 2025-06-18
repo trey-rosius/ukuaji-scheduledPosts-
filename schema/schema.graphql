@@ -22,17 +22,19 @@ type Query {
     @aws_api_key
 
   # Subscription queries
-  getSubscription(id: String!): SubscriptionPlan!
+  getSubscription(tier: String!): SubscriptionPlan!
     @aws_cognito_user_pools
     @aws_api_key
-  getUserSubscription(userId: String!): SubscriptionPlan
+  getUserSubscription(userId: String!, tier: String!): UserSubscriptionPlan
     @aws_cognito_user_pools
     @aws_api_key
   getAllSubscriptions(limit: Int!, nextToken: String): SubscriptionsResult!
     @aws_cognito_user_pools
     @aws_api_key
-  getSubscriptionFeatures(tier: SUBSCRIPTION_TIER!): SubscriptionFeatures!
-    @aws_api_key
+  getAllUserSubscriptions(
+    limit: Int!
+    nextToken: String
+  ): UserSubscriptionsResult! @aws_cognito_user_pools @aws_api_key
 }
 input ImageGuidedGenerationInput @aws_api_key {
   prompt: String!
@@ -84,12 +86,19 @@ type Mutation {
   createSubscription(input: CreateSubscriptionInput!): SubscriptionPlan!
     @aws_cognito_user_pools
     @aws_api_key
+
   updateSubscription(input: UpdateSubscriptionInput!): SubscriptionPlan!
     @aws_cognito_user_pools
     @aws_api_key
-  cancelSubscription(id: String!, userId: String!): Boolean!
+  cancelUserSubscription(id: String!, userId: String!): Boolean!
     @aws_cognito_user_pools
     @aws_api_key
+  createUserSubscription(
+    input: CreateUserSubscriptionInput!
+  ): UserSubscriptionPlan! @aws_cognito_user_pools @aws_api_key
+  updateUserSubscription(
+    input: UpdateUserSubscriptionInput!
+  ): UserSubscriptionPlan! @aws_cognito_user_pools @aws_api_key
 }
 
 input TextToVideoInput @aws_api_key {
@@ -275,15 +284,28 @@ enum SUBSCRIPTION_TIER {
   STANDARD
   PREMIUM
 }
-
-type SubscriptionFeatures {
+enum SUBSCRIPTION_STATUS {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+input SubscriptionFeaturesInput {
   postsPerMonth: Int!
   mediaStorageGB: Int!
+  knowledgeBaseAvailable: Boolean!
   aiGenerationCredits: Int!
   supportLevel: String!
 }
 
-type SubscriptionPlan {
+type SubscriptionFeatures {
+  postsPerMonth: Int!
+  mediaStorageGB: Int!
+  knowledgeBaseAvailable: Boolean!
+  aiGenerationCredits: Int!
+  supportLevel: String!
+}
+
+type UserSubscriptionPlan {
   id: String!
   userId: String!
   tier: SUBSCRIPTION_TIER!
@@ -292,9 +314,23 @@ type SubscriptionPlan {
   endDate: AWSTimestamp!
   autoRenew: Boolean!
   price: Float!
-  status: String!
+  status: SUBSCRIPTION_STATUS!
   createdOn: AWSTimestamp!
   updatedOn: AWSTimestamp
+}
+
+type SubscriptionPlan {
+  id: String
+  tier: SUBSCRIPTION_TIER!
+  features: SubscriptionFeatures!
+  price: Float!
+  createdOn: AWSTimestamp!
+  updatedOn: AWSTimestamp
+}
+
+type UserSubscriptionsResult {
+  items: [UserSubscriptionPlan!]!
+  nextToken: String
 }
 
 type SubscriptionsResult {
@@ -303,16 +339,28 @@ type SubscriptionsResult {
 }
 
 input CreateSubscriptionInput {
+  tier: SUBSCRIPTION_TIER!
+  features: SubscriptionFeaturesInput!
+  price: Float!
+}
+input UpdateSubscriptionInput {
+  id: ID!
+  tier: SUBSCRIPTION_TIER!
+  features: SubscriptionFeaturesInput!
+  price: Float!
+}
+
+input CreateUserSubscriptionInput {
   userId: String!
   tier: SUBSCRIPTION_TIER!
   autoRenew: Boolean!
 }
 
-input UpdateSubscriptionInput {
+input UpdateUserSubscriptionInput {
   id: String!
   userId: String!
-  tier: SUBSCRIPTION_TIER
-  autoRenew: Boolean
+  tier: SUBSCRIPTION_TIER!
+  autoRenew: Boolean!
 }
 
 # Prompt template types

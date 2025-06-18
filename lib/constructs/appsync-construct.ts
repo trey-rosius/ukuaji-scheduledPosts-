@@ -436,7 +436,7 @@ export function response(ctx) {
         runtime: appsync.FunctionRuntime.JS_1_0_0,
       }
     );
-    /*
+
     // Create pipeline resolvers for subscriptions
     const formatSubscriptionFunction = new appsync.AppsyncFunction(
       this,
@@ -465,7 +465,7 @@ export function response(ctx) {
         runtime: appsync.FunctionRuntime.JS_1_0_0,
       }
     );
-*/
+
     // Create prompt template resolvers
     this.api.createResolver("CreatePromptTemplate", {
       typeName: "Mutation",
@@ -477,7 +477,7 @@ export function response(ctx) {
       ],
       runtime: appsync.FunctionRuntime.JS_1_0_0,
     });
-    /*
+
     // Create subscription resolvers
     this.api.createResolver("CreateSubscription", {
       typeName: "Mutation",
@@ -517,36 +517,16 @@ export function response(ctx) {
       runtime: appsync.FunctionRuntime.JS_1_0_0,
     });
 
-    this.api.createResolver("GetSubscriptionFeatures", {
-      typeName: "Query",
-      fieldName: "getSubscriptionFeatures",
-      dataSource: noneDs,
+    this.api.createResolver("CreateUserSubscription", {
+      typeName: "Mutation",
+      fieldName: "createUserSubscription",
+      dataSource: dbDataSource,
       code: appsync.Code.fromAsset(
-        "./resolvers/subscriptions/getSubscriptionFeatures.js"
+        "./resolvers/subscriptions/createUserSubscription.js"
       ),
       runtime: appsync.FunctionRuntime.JS_1_0_0,
     });
 
-    this.api.createResolver("UpdateSubscription", {
-      typeName: "Mutation",
-      fieldName: "updateSubscription",
-      dataSource: dbDataSource,
-      code: appsync.Code.fromAsset(
-        "./resolvers/subscriptions/updateSubscription.js"
-      ),
-      runtime: appsync.FunctionRuntime.JS_1_0_0,
-    });
-
-    this.api.createResolver("CancelSubscription", {
-      typeName: "Mutation",
-      fieldName: "cancelSubscription",
-      dataSource: dbDataSource,
-      code: appsync.Code.fromAsset(
-        "./resolvers/subscriptions/cancelSubscription.js"
-      ),
-      runtime: appsync.FunctionRuntime.JS_1_0_0,
-    });
-*/
     this.api.createResolver("GetPromptTemplate", {
       typeName: "Query",
       fieldName: "getPromptTemplate",

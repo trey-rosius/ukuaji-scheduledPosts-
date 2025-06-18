@@ -112,7 +112,7 @@ export class DatabaseConstruct extends Construct {
       },
       projectionType: dynamodb.ProjectionType.ALL,
     });
-    /*
+
     // Add global secondary index for getting user subscriptions
     this.postsTable.addGlobalSecondaryIndex({
       indexName: TABLE_INDEXES.USER_SUBSCRIPTIONS,
@@ -126,7 +126,7 @@ export class DatabaseConstruct extends Construct {
       },
       projectionType: dynamodb.ProjectionType.ALL,
     });
-*/
+
     // Add global secondary index for getting users by email
     this.postsTable.addGlobalSecondaryIndex({
       indexName: TABLE_INDEXES.USER_BY_EMAIL,
