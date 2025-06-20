@@ -132,6 +132,7 @@ export interface MediaProcessingConstructProps {
   transcribeMediaStateMachine: StateMachine;
 
   extractTextHandlerFunction: PythonFunction;
+  knowledgeBase: KnowledgeBaseBase;
 }
 
 /**

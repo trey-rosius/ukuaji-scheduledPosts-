@@ -91,6 +91,7 @@ export class SchedulePostsStack extends cdk.Stack {
       {
         postMediaBucket: workflowConstruct.mediaBucket,
         postsTable: databaseConstruct.postsTable,
+        knowledgeBase: knowledgeBaseConstruct.knowledgeBase,
         extractTextHandlerFunction:
           workflowConstruct.extractTextHandlerFunction,
         extractTextStateMachine:

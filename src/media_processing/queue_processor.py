@@ -2,6 +2,7 @@ import json
 import os
 import boto3
 import logging
+from agent_util import KnowledgeBaseSaver
 from aws_lambda_powertools import Logger, Tracer, Metrics
 from aws_lambda_powertools.utilities.typing import LambdaContext
 
@@ -13,6 +14,11 @@ metrics = Metrics()
 # Initialize AWS clients
 s3_client = boto3.client('s3')
 sfn_client = boto3.client('stepfunctions')
+
+saver = KnowledgeBaseSaver(
+    knowledge_base_id=os.environ["STRANDS_KNOWLEDGE_BASE_ID"],
+    bypass_tool_consent=os.environ.get("BYPASS_TOOL_CONSENT", "True"),
+)
 
 @logger.inject_lambda_context(log_event=True)
 @tracer.capture_lambda_handler
@@ -60,9 +66,33 @@ def lambda_handler(event, context: LambdaContext):
                 logger.warning("Missing bucket or key in message")
                 continue
             
-           
-            # Determine which workflow to invoke based on file type or extension
-            if extension in ['.pdf', '.png', '.jpg', '.jpeg', '.tiff', '.tif', '.doc', '.docx', '.txt']:
+            if extension in ['.md', '.csv']:
+                try:
+                    obj = s3_client.get_object(Bucket=bucket_name, Key=object_key)
+                    body = obj['Body'].read().decode("utf-8", errors="replace")
+
+                     # Log the entire file or trim if huge
+                    logger.info(
+                        f"🔹 {object_key} content (first 4 KB shown):\n"
+                        f"{body[:4096]}"
+                    )
+
+                    result = saver.store_text(
+                        body,
+                        metadata={"source": "textract-lambda", "s3_key": object_key,"userId":"UserID"},
+                    )
+                    logger.info("Stored transcript in KB: %s", result)
+            
+
+                   
+                except Exception as e:
+                    logger.exception(
+                        f"Failed to read {object_key} from s3://{bucket_name}: {e}"
+                    )
+                # Skip Step Functions for .md / .csv
+                continue
+
+            if extension in ['.pdf', '.png','.md','.csv', '.jpg', '.jpeg', '.tiff', '.tif', '.doc', '.docx', '.txt']:
 
              
                 # Invoke the extract text workflow for document files

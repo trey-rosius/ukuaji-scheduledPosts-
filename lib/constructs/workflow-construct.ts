@@ -137,10 +137,31 @@ export class WorkflowConstruct extends Construct {
       "STRANDS_KNOWLEDGE_BASE_ID",
       knowledgeBase.knowledgeBaseId
     );
+    this.extractTextHandlerFunction.addEnvironment(
+      "BYPASS_TOOL_CONSENT",
+      "True"
+    );
     knowledgeBase.grantRetrieveAndGenerate(this.extractTextHandlerFunction);
 
     // Grant permissions to put events on the event bus
     eventBus.grantPutEventsTo(this.generatePostAgentFunction);
+
+    this.extractTextHandlerFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream",
+          "bedrock:ListDataSources",
+          "bedrock:StartIngestionJob",
+          "bedrock:GetIngestionJob",
+          "bedrock:ListIngestionJobs",
+          "bedrock:IngestKnowledgeBaseDocuments",
+          "bedrock:AssociateThirdPartyKnowledgeBase",
+        ],
+        resources: ["*"],
+        effect: iam.Effect.ALLOW,
+      })
+    );
 
     // Grant permissions to invoke Bedrock models
     this.generatePostAgentFunction.addToRolePolicy(

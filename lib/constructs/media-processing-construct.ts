@@ -64,6 +64,7 @@ export class MediaProcessingConstruct extends Construct {
       transcribeMediaStateMachine,
       extractTextHandlerFunction,
       postMediaBucket,
+      knowledgeBase,
     } = props;
 
     this.mediaBucket = new s3.Bucket(this, "SaturnDocsMediaBucket", {
@@ -162,8 +163,26 @@ export class MediaProcessingConstruct extends Construct {
             extractTextStateMachine.stateMachineArn || "",
           TRANSCRIBE_MEDIA_STATE_MACHINE_ARN:
             transcribeMediaStateMachine.stateMachineArn || "",
+          STRANDS_KNOWLEDGE_BASE_ID: knowledgeBase.knowledgeBaseId,
         },
       }
+    );
+
+    this.queueProcessorFunction.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream",
+          "bedrock:ListDataSources",
+          "bedrock:StartIngestionJob",
+          "bedrock:GetIngestionJob",
+          "bedrock:ListIngestionJobs",
+          "bedrock:IngestKnowledgeBaseDocuments",
+          "bedrock:AssociateThirdPartyKnowledgeBase",
+        ],
+        resources: ["*"],
+        effect: iam.Effect.ALLOW,
+      })
     );
 
     // Grant the upload processor function permissions to access the DynamoDB table
