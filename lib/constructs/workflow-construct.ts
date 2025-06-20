@@ -32,11 +32,6 @@ export class WorkflowConstruct extends Construct {
   public readonly generatePostWithContextStateMachine: sfn.StateMachine;
 
   /**
-   * The Step Function state machine for generating posts without context
-   */
-  public readonly generatePostWithoutContextStateMachine: sfn.StateMachine;
-
-  /**
    * The Step Function state machine for text-to-video generation
    */
   public readonly textToVideoStateMachine: sfn.StateMachine;
@@ -228,41 +223,6 @@ export class WorkflowConstruct extends Construct {
     );
     const postWithContextDefinitionJson = JSON.parse(
       readFileSync(aslPostWithContextFilePath, "utf8")
-    );
-
-    const aslPostWithoutContextFilePath = path.join(
-      __dirname,
-      "../../workflow/generate_post_without_context_workflow.asl.json"
-    );
-    const postWithoutContextDefinitionJson = JSON.parse(
-      readFileSync(aslPostWithoutContextFilePath, "utf8")
-    );
-
-    // Create the state machine for generating posts without context
-    this.generatePostWithoutContextStateMachine = new sfn.StateMachine(
-      this,
-      "GeneratePostWithoutContextStateMachine",
-      {
-        stateMachineName: "generatePostWithoutContextStateMachine",
-        role: stateMachineRole,
-        definitionBody: sfn.DefinitionBody.fromString(
-          JSON.stringify(postWithoutContextDefinitionJson)
-        ),
-        tracingEnabled: true,
-        logs: {
-          destination: new cdk.aws_logs.LogGroup(
-            this,
-            "WithoutContextLogGroup",
-            {
-              logGroupName:
-                "/aws/stepfunctions/generatePostWithoutContextStateMachine",
-              retention: DEFAULT_LOG_RETENTION_DAYS,
-              removalPolicy: cdk.RemovalPolicy.DESTROY,
-            }
-          ),
-          level: sfn.LogLevel.ALL,
-        },
-      }
     );
 
     // Create the state machine for generating posts with context
@@ -461,8 +421,7 @@ export class WorkflowConstruct extends Construct {
         tracing: lambda.Tracing.ACTIVE,
         environment: {
           ...COMMON_LAMBDA_ENV_VARS,
-          POST_WITHOUT_CONTEXT_STATE_MACHINE_ARN:
-            this.generatePostWithoutContextStateMachine.stateMachineArn,
+
           POST_WITH_CONTEXT_STATE_MACHINE_ARN:
             this.generatePostWithContextStateMachine.stateMachineArn,
           TEXT_TO_VIDEO_STATE_MACHINE_ARN:
@@ -499,7 +458,6 @@ export class WorkflowConstruct extends Construct {
           "states:StopExecution",
         ],
         resources: [
-          this.generatePostWithoutContextStateMachine.stateMachineArn,
           this.generatePostWithContextStateMachine.stateMachineArn,
           this.textToVideoStateMachine.stateMachineArn,
         ],
@@ -524,7 +482,6 @@ export class WorkflowConstruct extends Construct {
     [
       this.generatePostAgentFunction,
       this.generatePostWithContextStateMachine,
-      this.generatePostWithoutContextStateMachine,
       this.textToVideoStateMachine,
       this.extractTextFromFileStateMachine,
       this.transcribeMediaStateMachine,

@@ -164,6 +164,7 @@ export class MediaProcessingConstruct extends Construct {
           TRANSCRIBE_MEDIA_STATE_MACHINE_ARN:
             transcribeMediaStateMachine.stateMachineArn || "",
           STRANDS_KNOWLEDGE_BASE_ID: knowledgeBase.knowledgeBaseId,
+          BYPASS_TOOL_CONSENT: "True",
         },
       }
     );
