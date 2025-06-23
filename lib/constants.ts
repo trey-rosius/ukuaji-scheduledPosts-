@@ -70,6 +70,7 @@ export const TABLE_INDEXES = {
   USER_BY_EMAIL: "getUserByEmail",
   ALL_SUBSCRIPTIONS: "getAllSubscriptions",
   USER_SUBSCRIPTIONS: "getUserSubscriptions",
+  GET_USER_GALLERY: "getUserGallery",
 };
 
 /**
@@ -90,6 +91,8 @@ export const TABLE_ATTRIBUTES = {
   GSI5_SORT_KEY: "GSI5SK",
   GSI6_PARTITION_KEY: "GSI6PK",
   GSI6_SORT_KEY: "GSI6SK",
+  GSI7_PARTITION_KEY: "GSI7PK",
+  GSI7_SORT_KEY: "GSI7SK",
   EMAIL: "email",
 };
 

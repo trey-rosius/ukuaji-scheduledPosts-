@@ -9,6 +9,8 @@ type Query {
   getAllPosts(limit: Int!, nextToken: String): PostsResult! @aws_api_key
   getUserAccount(id: String!): User! @aws_cognito_user_pools @aws_api_key
 
+  getUserGallery(userId: String!): Gallery! @aws_api_key @aws_cognito_user_pools
+
   getUserByEmail(email: String!): User @aws_cognito_user_pools @aws_api_key
   generateImages(input: String!): [String!]! @aws_api_key
   imageGuidedGeneration(input: ImageGuidedGenerationInput!): [String!]!
@@ -35,6 +37,14 @@ type Query {
     limit: Int!
     nextToken: String
   ): UserSubscriptionsResult! @aws_cognito_user_pools @aws_api_key
+}
+
+type Gallery @aws_api_key @aws_cognito_user_pools {
+  userId: String!
+  mediaType: String!
+  s3BucketUriPlusKey: String!
+  folder: String!
+  video: String!
 }
 input ImageGuidedGenerationInput @aws_api_key {
   prompt: String!
