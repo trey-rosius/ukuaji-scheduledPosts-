@@ -129,7 +129,7 @@ export class DatabaseConstruct extends Construct {
 
     // Add global secondary index for getting user gallery
     this.postsTable.addGlobalSecondaryIndex({
-      indexName: TABLE_INDEXES.USER_SUBSCRIPTIONS,
+      indexName: TABLE_INDEXES.GET_USER_GALLERY,
       partitionKey: {
         name: TABLE_ATTRIBUTES.GSI7_PARTITION_KEY,
         type: dynamodb.AttributeType.STRING,

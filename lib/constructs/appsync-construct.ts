@@ -373,6 +373,30 @@ export function response(ctx) {
         runtime: appsync.FunctionRuntime.JS_1_0_0,
       });
 
+    // get user post
+    this.api
+      .addDynamoDbDataSource("UserPostsDataSource", postsTable)
+      .createResolver("UserPostsResolver", {
+        typeName: "Query",
+        fieldName: "getUserPosts",
+        code: appsync.Code.fromAsset(
+          path.join(__dirname, "../../resolvers/posts/getUserPosts.js")
+        ),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      });
+
+    // get user by email
+    this.api
+      .addDynamoDbDataSource("GetUserByEmailDataSource", postsTable)
+      .createResolver("GetUserByEmailResolver", {
+        typeName: "Query",
+        fieldName: "getUserByEmail",
+        code: appsync.Code.fromAsset(
+          path.join(__dirname, "../../resolvers/users/getUserByEmail.js")
+        ),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      });
+
     // Create pipeline resolvers for user account operations
     const formatUserAccountFunction = new appsync.AppsyncFunction(
       this,

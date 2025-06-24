@@ -5,8 +5,13 @@ schema {
 }
 
 type Query {
-  getPost(id: String!): Post! @aws_api_key
-  getAllPosts(limit: Int!, nextToken: String): PostsResult! @aws_api_key
+  getPost(id: String!): Post! @aws_api_key @aws_cognito_user_pools
+  getAllPosts(limit: Int!, nextToken: String): PostsResult!
+    @aws_api_key
+    @aws_cognito_user_pools
+  getUserPosts(userId: String!, limit: Int!, nextToken: String): PostsResult!
+    @aws_api_key
+    @aws_cognito_user_pools
   getUserAccount(id: String!): User! @aws_cognito_user_pools @aws_api_key
 
   getUserGallery(userId: String!): Gallery! @aws_api_key @aws_cognito_user_pools
@@ -66,7 +71,9 @@ type Mutation {
     @aws_api_key
     @aws_cognito_user_pools
   updateUserAccount(userInput: UpdateUserInput!): User! @aws_cognito_user_pools
-  createPost(postInput: CreatePostInput!): Post! @aws_api_key
+  createPost(postInput: CreatePostInput!): Post!
+    @aws_api_key
+    @aws_cognito_user_pools
   updatePost(postInput: UpdatePostInput!): Post! @aws_cognito_user_pools
   getGeneratedPostAgent(
     input: String!
@@ -212,7 +219,7 @@ input CreatePostInput @aws_api_key {
   imageKeys: [String!]
   entity: String!
   userId: String!
-  schedule: PostScheduleInput!
+  schedule: PostScheduleInput
   schedulePost: Boolean!
 }
 
@@ -243,7 +250,7 @@ input UpdatePostInput @aws_api_key {
   schedulePost: Boolean!
 }
 
-type Post @aws_api_key {
+type Post @aws_api_key @aws_cognito_user_pools {
   id: String!
   userId: String!
   content: String!
@@ -279,7 +286,7 @@ type Subscription {
     @aws_api_key
     @aws_subscribe(mutations: ["updateSubscription"])
 }
-type PostsResult @aws_api_key {
+type PostsResult @aws_api_key @aws_cognito_user_pools {
   items: [Post!]!
   nextToken: String
 }

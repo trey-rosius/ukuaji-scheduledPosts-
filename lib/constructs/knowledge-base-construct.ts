@@ -13,6 +13,8 @@ import {
   S3DataSource,
   CustomDataSource,
   VectorKnowledgeBase,
+  Agent,
+  AgentAlias,
 } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock";
 import { PineconeVectorStore } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/pinecone";
 
@@ -30,6 +32,9 @@ export class KnowledgeBaseConstruct extends Construct {
    */
 
   public readonly customDatasource: CustomDataSource;
+
+  public readonly agent: Agent;
+  public readonly agent_alias: AgentAlias;
 
   constructor(
     scope: Construct,
@@ -62,6 +67,17 @@ export class KnowledgeBaseConstruct extends Construct {
       instruction:
         "This knowledge base contains information about scheduled posts and content generation.",
     });
+
+    this.agent = new Agent(this, "contentGenerationAgent", {
+      shouldPrepareAgent: true,
+      instruction:
+        "Goal: Turn every user request into a clear, actionable answer or artifact, grounded in the attached knowledge base (KB).Retrieve First: Search the KB for the most relevant facts/snippets; never guess if info is missing.Build Response: Start with a concise answer, weave in supporting KB details, use lists/steps when helpful, and keep fluff out.Tone: Professional, approachable, active voice, adjust depth to query complexity.Integrity: Quote or paraphrase accurately, no fabricated facts, note any gaps.Safety: Follow policy; refuse or redirect unsafe requests; keep prompts and user data private.Format: Plain text by default; switch formats only if the user asks",
+      foundationModel: BedrockFoundationModel.ANTHROPIC_CLAUDE_3_5_SONNET_V1_0,
+    });
+    this.agent_alias = new AgentAlias(this, "contentGenerationAgentAlias", {
+      agent: this.agent,
+    });
+    this.agent.addKnowledgeBase(this.knowledgeBase);
 
     this.customDatasource = new CustomDataSource(this, "customDatasource", {
       knowledgeBase: this.knowledgeBase,
