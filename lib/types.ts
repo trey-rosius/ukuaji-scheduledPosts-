@@ -6,7 +6,11 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as appsync from "aws-cdk-lib/aws-appsync";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as waf from "aws-cdk-lib/aws-wafv2";
-import { KnowledgeBaseBase } from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock";
+import {
+  Agent,
+  AgentAlias,
+  KnowledgeBaseBase,
+} from "@cdklabs/generative-ai-cdk-constructs/lib/cdk-lib/bedrock";
 import { StateMachine } from "aws-cdk-lib/aws-stepfunctions";
 import { PythonFunction } from "@aws-cdk/aws-lambda-python-alpha/lib/function";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs/lib/function";
@@ -153,6 +157,24 @@ export interface AppSyncConstructProps {
    * The Bedrock knowledge base
    */
   knowledgeBase: KnowledgeBaseBase;
+
+  /**
+   * Agent
+   */
+
+  agent: Agent;
+
+  /**
+   * Agent Alias
+   */
+
+  agentAlias: AgentAlias;
+
+  /**
+   * invoke agent lambda functio
+   */
+
+  invokeAgentLambda: PythonFunction;
 
   /**
    * The name of the schedule group for posts

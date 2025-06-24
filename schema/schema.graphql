@@ -16,6 +16,8 @@ type Query {
 
   getUserGallery(userId: String!): Gallery! @aws_api_key @aws_cognito_user_pools
 
+  getAgentContext(input: AgentContextInput!): AgentContextResponse! @aws_api_key
+
   getUserByEmail(email: String!): User @aws_cognito_user_pools @aws_api_key
   generateImages(input: String!): [String!]! @aws_api_key
   imageGuidedGeneration(input: ImageGuidedGenerationInput!): [String!]!
@@ -51,10 +53,19 @@ type Gallery @aws_api_key @aws_cognito_user_pools {
   folder: String!
   video: String!
 }
+input AgentContextInput @aws_api_key {
+  query: String!
+  session_id: String
+}
 input ImageGuidedGenerationInput @aws_api_key {
   prompt: String!
   conditionImage: String!
   numOfImages: Int!
+}
+
+type AgentContextResponse @aws_api_key {
+  response: String!
+  session_id: String!
 }
 
 input ReplaceImageBackgroundInput @aws_api_key {

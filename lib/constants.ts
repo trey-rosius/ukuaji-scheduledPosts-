@@ -27,6 +27,10 @@ export const COMMON_LAMBDA_ENV_VARS = {
 export const DEFAULT_LAMBDA_MEMORY_SIZE = 256;
 
 /**
+ * Default memory size for Lambda functions in MB
+ */
+export const AGENT_LAMBDA_MEMORY_SIZE = 512;
+/**
  * Default log retention period in days
  */
 export const DEFAULT_LOG_RETENTION_DAYS = cdk.aws_logs.RetentionDays.ONE_WEEK;

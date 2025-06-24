@@ -49,6 +49,9 @@ export class AppSyncConstruct extends Construct {
       postsTable,
       scheduledRole,
       knowledgeBase,
+      agent,
+      agentAlias,
+      invokeAgentLambda,
       postScheduledGroupName,
       eventBus,
       startWorkflowFunction,
@@ -312,6 +315,17 @@ export function response(ctx) {
       .createResolver("generatePostAgentResolver", {
         typeName: "Mutation",
         fieldName: "getGeneratedPostAgent",
+        code: appsync.Code.fromAsset(
+          path.join(__dirname, "../../invoke/invoke.js")
+        ),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      });
+
+    this.api
+      .addLambdaDataSource("invokeAgentDatasource", invokeAgentLambda)
+      .createResolver("invokeAgentLambdaResolver", {
+        typeName: "Query",
+        fieldName: "getAgentContext",
         code: appsync.Code.fromAsset(
           path.join(__dirname, "../../invoke/invoke.js")
         ),
