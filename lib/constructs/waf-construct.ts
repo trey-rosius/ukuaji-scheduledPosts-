@@ -65,6 +65,7 @@ export class WafConstruct extends Construct {
           managedRuleGroupStatement: {
             vendorName: "AWS",
             name: "AWSManagedRulesCommonRuleSet",
+            excludedRules: [{ name: "SizeRestrictions_BODY" }],
           },
         },
         overrideAction: { none: {} },
@@ -138,11 +139,10 @@ export class WafConstruct extends Construct {
       priority: 50,
       statement: {
         sizeConstraintStatement: {
-          fieldToMatch: {
-            body: {},
-          },
+          fieldToMatch: { body: { oversizeHandling: "CONTINUE" } },
+
           comparisonOperator: "GT",
-          size: 8192, // 8KB max request size
+          size: 65536, // 8KB max request size
           textTransformations: [
             {
               priority: 0,
@@ -151,9 +151,7 @@ export class WafConstruct extends Construct {
           ],
         },
       },
-      action: {
-        block: {},
-      },
+      action: { count: {} },
       visibilityConfig: {
         sampledRequestsEnabled: true,
         cloudWatchMetricsEnabled: true,

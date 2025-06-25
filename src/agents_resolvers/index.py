@@ -57,11 +57,11 @@ logging.basicConfig(
 )
 def lambda_handler(event, context):
 
-    prompt_args = event.get("input", {})
+    prompt_args = event["input"]
     logging.info(f"prompt_args: {prompt_args}")
-    logging.info(f"prompt_args: {prompt_args.get("topic","")}")
+    logging.info(f"prompt_args: {prompt_args["topic"]}")
 
-    topic = prompt_args.get("topic","")
+    topic = prompt_args["topic"]
 
 
     bedrock_model = BedrockModel(
