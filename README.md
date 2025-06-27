@@ -101,15 +101,18 @@ including:
 **AWS CDK** : no runtime cost itself; you pay only for the resources it
 provisions (e.g., Lambda, S3)
 
-lib/ ├── constructs/ │ ├── auth-construct.ts # Cognito + secrets │ ├──
-database-construct.ts # DynamoDB tables & global indexes │ ├──
-knowledge-base-construct.ts# S3 + Pinecone index + Bedrock KB │ ├──
-media-processing-construct.ts # Transcribe + Step Functions video │ ├──
-workflow-construct.ts # Generic SFN wrapper + CloudWatch alarms │ ├──
-waf-construct.ts # L3 & L7 protection │ └── appsync-construct.ts # GraphQL API,
-data sources & resolvers ├── schedule_posts-stack.ts # Root stack orchestrating
-sub-stacks └── types.ts / constants.ts
-
+```
+lib/
+├── constructs/
+│   ├── auth-construct.ts          # Cognito + secrets
+│   ├── database-construct.ts      # DynamoDB tables & global indexes
+│   ├── knowledge-base-construct.ts# S3 + Pinecone index + Bedrock KB
+│   ├── media-processing-construct.ts # Transcribe + Step Functions video
+│   ├── workflow-construct.ts      # Generic SFN wrapper + CloudWatch alarms
+│   ├── waf-construct.ts           # L3 & L7 protection
+│   └── appsync-construct.ts       # GraphQL API, data sources & resolvers
+├── schedule_posts-stack.ts        # Root stack orchestrating sub-stacks
+└── types.ts / constants.ts
 ```
 
 ### Separation of Concerns
@@ -164,4 +167,7 @@ to be added later
 ## What I learned
 
 ## What's next for this app
+
+```
+
 ```
