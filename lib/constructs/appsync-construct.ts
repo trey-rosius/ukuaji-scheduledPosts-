@@ -48,11 +48,8 @@ export class AppSyncConstruct extends Construct {
       postsTable,
       scheduledRole,
       knowledgeBase,
-      agent,
-      agentAlias,
       invokeAgentLambda,
       postScheduledGroupName,
-      eventBus,
       startWorkflowFunction,
       generatePostAgentFunction,
 

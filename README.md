@@ -101,28 +101,6 @@ including:
 **AWS CDK** : no runtime cost itself; you pay only for the resources it
 provisions (e.g., Lambda, S3)
 
-```
-lib/
-├── constructs/
-│   ├── auth-construct.ts          # Cognito + secrets
-│   ├── database-construct.ts      # DynamoDB tables & global indexes
-│   ├── knowledge-base-construct.ts# S3 + Pinecone index + Bedrock KB
-│   ├── media-processing-construct.ts # Transcribe + Step Functions video
-│   ├── workflow-construct.ts      # Generic SFN wrapper + CloudWatch alarms
-│   ├── waf-construct.ts           # L3 & L7 protection
-│   └── appsync-construct.ts       # GraphQL API, data sources & resolvers
-├── schedule_posts-stack.ts        # Root stack orchestrating sub-stacks
-└── types.ts / constants.ts
-```
-
-### Separation of Concerns
-
-| Principle                                                 | Implementation                                                         |
-| --------------------------------------------------------- | ---------------------------------------------------------------------- |
-| **Stacks** encapsulate **deployment boundaries**          | `SchedulePostsStack` wires together independent domain constructs.     |
-| **Constructs** model **single-responsibility components** | Each `*-construct.ts` exposes a minimal interface (e.g. tables, ARNs). |
-| **Reusability** across stages (dev/test/prod)             | Context vars + `cdk.json` enable environment-agnostic deployments.     |
-
 ### Resource Tagging
 
 All stacks apply **mandatory tags** (`AWS CDK Aspects`):
@@ -134,6 +112,38 @@ All stacks apply **mandatory tags** (`AWS CDK Aspects`):
 | `Owner`       | GitHub username or team   | Accountability                   |
 | `CostCenter`  | CloudFinance code         | Chargeback / showback            |
 | `Stack`       | Logical stack id          | Quickly locate resources         |
+
+### Separation of Concerns
+
+| Principle                                                 | Implementation                                                         |
+| --------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **Stacks** encapsulate **deployment boundaries**          | `SchedulePostsStack` wires together independent domain constructs.     |
+| **Constructs** model **single-responsibility components** | Each `*-construct.ts` exposes a minimal interface (e.g. tables, ARNs). |
+| **Reusability** across stages (dev/test/prod)             | Context vars + `cdk.json` enable environment-agnostic deployments.     |
+
+```
+lib/
+├── constructs/
+│   ├── auth-construct.ts
+│   ├── database-construct.ts
+│   ├── knowledge-base-construct.ts
+│   ├── media-processing-construct.ts
+│   ├── workflow-construct.ts
+|   ├── events-construct.ts
+│   ├── waf-construct.ts
+│   └── appsync-construct.ts
+├── schedule_posts-stack.ts
+└── types.ts / constants.ts
+```
+
+![stack-constructs](./assets/stack-construct-img.png)
+
+## Domain Description
+
+### auth-construct.ts
+
+To protect the Appsync endpoint from unauthorized access, this construct creates
+an AWS Cognito userpool and a userpool.
 
 ## Inspiration
 

@@ -52,7 +52,7 @@ the following rules:
   authorization modes (API key, Cognito User Pool, IAM).
 - **Enable traceability**: WAF logs are enabled for all rules, providing
   visibility into potential security events.
-- **Apply security at all layers**: WAF adds a security layer at the API gateway
+- **Apply security at all layers**: WAF adds a security layer at the Appsync
   level, complementing other security measures.
 - **Automate security best practices**: Security rules are defined as code and
   automatically deployed with the application.
@@ -103,7 +103,7 @@ the following rules:
 
 ## Future Enhancements
 
-Consider the following enhancements for production environments:
+Here are some enhancements i'll be implementing for production environments:
 
 1. **Custom Rules**: Add custom rules based on specific application requirements
    and observed attack patterns.

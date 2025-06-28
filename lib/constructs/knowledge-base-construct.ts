@@ -1,6 +1,6 @@
 import { Construct } from "constructs";
 import * as cdk from "aws-cdk-lib";
-import * as s3 from "aws-cdk-lib/aws-s3";
+
 import { KnowledgeBaseConstructProps } from "../types";
 import {
   COMMON_TAGS,
@@ -95,7 +95,7 @@ export class KnowledgeBaseConstruct extends Construct {
           "bedrock:GetAgent",
           "bedrock:InvokeModelWithResponseStream",
         ],
-        resources: ["*"],
+        resources: [this.agent.agentArn],
         effect: cdk.aws_iam.Effect.ALLOW,
       })
     );

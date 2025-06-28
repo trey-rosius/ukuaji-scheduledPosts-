@@ -139,10 +139,10 @@ export class WafConstruct extends Construct {
       priority: 50,
       statement: {
         sizeConstraintStatement: {
-          fieldToMatch: { body: { oversizeHandling: "CONTINUE" } },
+          fieldToMatch: { body: {} },
 
           comparisonOperator: "GT",
-          size: 65536, // 8KB max request size
+          size: 8000, // 8KB max request size
           textTransformations: [
             {
               priority: 0,
@@ -151,7 +151,7 @@ export class WafConstruct extends Construct {
           ],
         },
       },
-      action: { count: {} },
+      action: { block: {} },
       visibilityConfig: {
         sampledRequestsEnabled: true,
         cloudWatchMetricsEnabled: true,
