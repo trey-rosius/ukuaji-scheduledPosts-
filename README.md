@@ -143,7 +143,25 @@ lib/
 ### auth-construct.ts
 
 To protect the Appsync endpoint from unauthorized access, this construct creates
-an AWS Cognito userpool and a userpool.
+an AWS Cognito userpool and a userpool client.
+
+### database-construct.ts
+
+This construct creates a Dynamodb table and Global Secondary Indexes for
+different access patterns of our application.
+
+```
+  ALL_USERS: "getAllUsers",
+  ALL_POSTS: "getAllPosts",
+  ALL_USER_POSTS: "getAllUserPosts",
+  USER_GALLERY: "getUserGallery",
+  ALL_PROMPTS: "getAllPrompts",
+  USER_BY_EMAIL: "getUserByEmail",
+  ALL_SUBSCRIPTIONS: "getAllSubscriptions",
+  USER_SUBSCRIPTIONS: "getUserSubscriptions",
+  GET_USER_GALLERY: "getUserGallery",
+
+```
 
 ## Inspiration
 

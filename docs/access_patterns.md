@@ -47,37 +47,6 @@ MEDIA
 
 - Get User Gallery
 
-# Creating a Post
-
-A post is made up of different formats
-
-- Text can either be typed or AI Generated
-- Images can either be selected from users device or AI generated with Nova
-  Canvas
-- Video can either be selected from users device or generated with Nova Reels
-
-These 3 formats can be mixed and matched to create a post.
-
-When a post is created and sent to the backend, here's what happens.
-
-The architecture below represents the AWS Services involved its entire flow.
-
-![create-post](/assets/create_post_solutions_architecture.png) When a post is
-created, it is saved to a Dynamodb Table. The table is configured to trigger a
-Dynamodb stream on NEW_IMAGE created. This stream of events is picked up by an
-eventbridge pipe. The pipe filters for new events with Entity=POST. We do this
-filtering because, our table follows the single table design pattern. Meaning
-new items can be created with different Entities. We don't want the pipe to
-forward events whose Entities aren't POST.
-
-The pipe has an eventbridge rule as it's target. The event is forwarded to this
-rule. Subscribed to this rule is a lambda function(Scheduled Post).This lambda
-function gets the event, extract the Post and schedules the post for a
-particular day and date as requested by the post creator using the Eventbridge
-Scheduler. Another lambda function gets triggered by the Eventbridge Scheduler.
-This function is responsible for uploading the post to the selected social media
-platform
-
 ## Overview
 
 `scheduledPost` is an Appsync Graphql Application. I choosed Graphql with
@@ -366,7 +335,7 @@ agent.
 In this section, we'll look at all the ways by which this app lets users create
 content.
 
-### Text Generation with Strands
+### Text Generation with Strands(No Knowledge base)
 
 Here's the solutions architecture
 
@@ -378,7 +347,91 @@ text is streamed in realtime back to an Appsync subscription. So the susbcribed
 clients get each text chunk as it gets generated. One of the coolest features of
 the app. It'll be illustrated properly in the video.
 
-The talk about waf talk about cognito talk about authorizationtypes talk about
-using javascript resolvers to handle some resolvers Talk about lambda resolvers
-talk about Agents to talk about generate videos with step functions talk about
-the RAG pipeline talk about creative writing
+## Text Generation with Bedrock Agents(With Knowledgebase)
+
+This endpoint gives the user the capability to generate content with context
+from their knowledge bases.
+
+For example, a here's a query
+
+```
+"\"I need assistance in generating content and design/code for a high-quality presentation deck focused on a Nanny Booking API. Please help with the following aspects: * Content Creation:     * Outline key topics and subtopics relevant to the above content.     * Provide insights into effective storytelling techniques for a presentation.     * Suggest any relevant statistics, market trends, or case studies to include.
+```
+
+Currently, we don't have content with respect to a `Nanny booking api` in our
+knowledge base.
+
+Let's see the response from the AI Agent
+
+![get-agent-context](/assets/get-agent-context.png)
+
+```
+"I apologize, but I don't have enough relevant information from the provided search results to answer your question about a Nanny Booking API presentation or childcare services. The search results primarily contain information about apartment booking systems and database architectures, which are not related to the topic you're asking about."
+```
+
+It can't return a specific answer because it doesn't have the context. I
+could've attached a web search tool to the agent to search the web and return a
+web based response. I think i'll add that to the next version of the app.
+
+Let's add content for the `Nanny booking API` to our knowledge base and do the
+query again.
+
+Here's the result
+
+```
+The Nanny Booking API presentation content focuses on building a modern, scalable, event-driven GraphQL API using multiple AWS services. Key topics covered in the course include:\n\n1. Designing entity relationship diagrams based on business logic\n2. Creating a single-table DynamoDB database based on access patterns\n3. Authenticating and authorizing users with AWS Cognito\n4. Using AWS Lambda Powertools for application instrumentation\n5. Orchestrating parts of the application with Step Functions\n6. Decoupling the application with queues\n7........
+```
+
+![nanny booking](/assets/nanny-booking.png)
+
+So we can see how this feature can be used for creative content writing. Also,
+we can go further by creating content in different languages, creative
+assessments for educational focus content etc.
+
+## Image Generation with Amazon Nova Canvas
+
+This api allows users to generate images with Amazon's flagship Foundation Model
+call `Nova Canvas`.
+
+![generate image](/assets/generate_image.png)
+
+## Video Generation with Amazon Nova Reels
+
+This endpoint is kind of interesting. It uses a step functions workflow to
+generate videos for your application without using lambda functions.
+
+![generate videos](/assets/generate_videos.png)
+
+# Creating and Scheduling A Post
+
+A post is made up of different formats
+
+- Text can either be typed or AI Generated
+- Images can either be selected from users device or AI generated with Nova
+  Canvas
+- Video can either be selected from users device or generated with Nova Reels
+
+These 3 formats can be mixed and matched to create a post.
+
+When a post is created and sent to the backend, here's what happens.
+
+The architecture below represents the AWS Services involved its entire flow.
+
+![create-post](/assets/create_post_solutions_architecture.png)
+
+When a post is created, it is saved to a Dynamodb Table. The table is configured
+to trigger a Dynamodb stream on NEW_IMAGE created. These stream of events get
+picked up by an eventbridge pipe. The pipe filters for new events with
+`Entity=POST`.
+
+We do this filtering because, our table follows the single table design pattern.
+Meaning new items can be created with different Entities. We don't want the pipe
+to forward events whose Entities aren't POST.
+
+The pipe has an eventbridge rule as it's target. The POST event is forwarded to
+this rule. Subscribed to this rule is a lambda function(Scheduled Post).This
+lambda function gets the event, extract the Post and schedules the post for a
+particular day and date as requested by the post creator using the Eventbridge
+Scheduler. The Eventbridge Scheduler triggers a lambda function once the
+schedule day/time has arrived. This function is responsible for uploading the
+post to the user social media platforms.
