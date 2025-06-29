@@ -1,17 +1,11 @@
-# Entities
+## Entities
 
 - USER
 - POST
 - SUBSCRIPTION
+- USER SUBSCRIPTION
 - PROMPT TEMPLATES
-
-- AGENTS
-
-MEDIA
-
-- TEXT(PDF/CSV/MD)
-- AUDIO
-- VIDEO
+- USER GALLERY
 
 ## Access Patterns
 
@@ -30,14 +24,14 @@ MEDIA
 
 ### PROMPT TEMPLATES
 
-- Create Template
-- Update Template
+- Create Template(Admins Only)
+- Update Template(Admins Only)
 - Get Template
 - Get All Templates
 
 ### SUBSCRIPTIONS
 
-- Create Subscription
+- Create Subscription(Admins Only)
 - Create User Subscription
 - Get All Subscription
 - Get Subscription
@@ -47,24 +41,28 @@ MEDIA
 
 - Get User Gallery
 
+## DynamoDB Nosql Workbench
+
+- [Ukuaji Nosql Schema](/assets/ukuaji.json)
+
 ## Overview
 
-`scheduledPost` is an Appsync Graphql Application. I choosed Graphql with
-Appsync due to a couple of reasons such as
+This is an Appsync Graphql API. I choosed Appsync due to a couple of reasons.
 
-1. It's realtime capabilities using subscriptionsa and offline support with
-   Amplify Clients. The frontend for this application is a mobile app(It'll be
-   illustrated later).To ensure a good User Experience, it's emperical to always
-   provide immediate feedback on all activities happening inside the app.
+1. It's realtime capabilities using subscriptions and offline support with
+   Amplify Clients.
+
+The frontend for this application is a mobile app(It'll be illustrated later).To
+ensure a good User Experience, it's emperical to always provide immediate
+feedback on all events going through the app.
 
 The easiest way to do this is to make your application, real-time aware. Appsync
 makes this step a lot easier with subscriptions.
 
-And you don't need to write extra code to add real-time susbcriptions to
-Appsync.
+And you don't need to write extra code to add real-time capabilities to Appsync.
 
-Using the Amplify client, we can queue mutations offline and sync when back
-online (conflict resolution included).
+For offline support, Using the Amplify client, we can queue mutations offline
+and sync when back online (conflict resolution included).
 
 2. Payload Efficiency
 
@@ -74,12 +72,19 @@ consumption and overall speed.
 
 3. Granular auth in one place
 
-Our API supports 3 Authentication Types
+This API supports 3 Authentication Types
 
 - API KEY
 - AWS Cognito
 - AWS IAM. And we can easily add others like OIDC. Appsync allows us to easily
   support all these right down the the Graphql Schema `field level`.
+
+```graphql
+type PostsResult @aws_api_key {
+  items: [Post!]! @aws_cognito_user_pools
+  nextToken: String
+}
+```
 
 ```typescript
 
@@ -105,21 +110,25 @@ Our API supports 3 Authentication Types
 
 ```
 
-4. Tooling for analytics You don't want your application to be a black box.
-   Appsync makes it easy to connect `X-ray tracing` at the resolver layers and
-   monitor Logs of all levels.
+4. Tooling for analytics.
 
-```
+Appsync makes it easy to connect `X-ray tracing` at the resolver layers and
+monitor Logs of all levels.
+
+```ts
 xrayEnabled: true,
       logConfig: {
         fieldLogLevel: appsync.FieldLogLevel.ALL,
       }
 ```
 
-5. Appsync Javascript Resolvers. Not every resolver needs to be a Lambda
-   function. Lambda functions are expensive to run. Most times, a light way
-   Appsync JS_resolver is enough to get the Job done. They're free, have zero
-   cold starts and extremely fast. Yes. They are faster than lambda functions.
+5. Appsync Javascript Resolvers.
+
+Not every resolver needs to be a Lambda function. Lambda functions are expensive
+to run. Sometimes, a light weight Appsync JS_resolver is enough to get the Job
+done. They're free, have zero cold starts and extremely fast.
+
+## Authentication
 
 This application starts off with the user having to create a user profile.
 
@@ -182,7 +191,7 @@ weight.
 
 In the directory `resolvers/users/` we have User Resolver files.
 
-Let's take a look at the `Create User Resolver`.
+Let's take a look at the `Create User Resolver` functionality.
 
 Firstly, we have to define Graphql Inputs, and Mutation for this resolver.
 
@@ -273,8 +282,7 @@ to upload
 - Generating Context Aware Social Media Posts
 
 As a matter fact, by enabling users to upload content to their knowledge bases,
-you give them the possibility of generating content that sounds like them and
-not a Robot.
+you give them the possibility to generate content with respect to their context.
 
 For this use case, we'll use Amazon Bedrock Knowledge bases, A custom datasource
 and Strands Agent.
@@ -311,8 +319,7 @@ this.processingQueue = new sqs.Queue(this, "ProcessingQueue", {
 ```
 
 Another lambda function polls for available messages inside the SQS Queue, grabs
-the messages and then invokes a path, based on the extension of the file inside
-the message.
+the messages and then invokes a path, based on the uploaded file extension.
 
 If the file was a `.md/.csv` file, the text is extracted and stored inside a
 knowledge base, using an AI Agent.
@@ -435,3 +442,15 @@ particular day and date as requested by the post creator using the Eventbridge
 Scheduler. The Eventbridge Scheduler triggers a lambda function once the
 schedule day/time has arrived. This function is responsible for uploading the
 post to the user social media platforms.
+
+## Prompt Templates
+
+To facilitate content creation and give users ideas on prompt types, `ukuaji`
+has a list of `prompt templates` which can be dynamically updated to incorporate
+more templates. Users can remix the templates to suit their use cases.
+
+## Subscriptions
+
+Because we plan to monetize this service, i started working on a subscription
+service for the platform. Currently, admins can create/update subscriptions and
+users can subscribe. Currently there's no payment gateway attached.
