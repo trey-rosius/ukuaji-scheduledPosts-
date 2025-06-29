@@ -78,9 +78,7 @@ input ReplaceImageBackgroundInput @aws_api_key {
 type Mutation {
   startAgentStateMachine(input: StartAgentStateMachineInput!): Boolean!
     @aws_api_key
-  createUserAccount(userInput: CreateUserInput!): User!
-    @aws_api_key
-    @aws_cognito_user_pools
+  createUserAccount(userInput: CreateUserInput!): User! @aws_cognito_user_pools
   updateUserAccount(userInput: UpdateUserInput!): User! @aws_cognito_user_pools
   createPost(postInput: CreatePostInput!): Post!
     @aws_api_key
@@ -177,7 +175,7 @@ input StartAgentStateMachineInput @aws_api_key {
   useKB: Boolean!
 }
 
-input CreateUserInput @aws_cognito_user_pools @aws_api_key {
+input CreateUserInput @aws_cognito_user_pools {
   username: String!
   firstName: String!
   lastName: String!

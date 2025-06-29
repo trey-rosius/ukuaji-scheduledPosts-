@@ -95,7 +95,7 @@ export class KnowledgeBaseConstruct extends Construct {
           "bedrock:GetAgent",
           "bedrock:InvokeModelWithResponseStream",
         ],
-        resources: [this.agent.agentArn],
+        resources: ["*"],
         effect: cdk.aws_iam.Effect.ALLOW,
       })
     );
