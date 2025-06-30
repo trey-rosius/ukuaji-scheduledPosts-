@@ -8,6 +8,11 @@
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
+    "test:unit": "jest test/unit",
+    "test:integration": "jest test/integration",
+    "test:stack": "jest test/schedule_posts.test.ts",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
     "cdk": "cdk",
     "codegen": "graphql-codegen"
   },
@@ -32,7 +37,7 @@
     "@aws-cdk/aws-lambda-python-alpha": "^2.199.0-alpha.0",
     "date-fns": "4.1.0",
     "@aws-appsync/utils": "1.12.0",
-    "@cdklabs/generative-ai-cdk-constructs": "0.1.303",
+    "@cdklabs/generative-ai-cdk-constructs": "0.1.309",
     "@aws-lambda-powertools/jmespath": "2.18.0",
     "aws-cdk-lib": "2.199.0",
     "constructs": "^10.0.0"

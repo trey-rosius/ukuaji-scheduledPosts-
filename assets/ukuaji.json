@@ -1,0 +1,563 @@
+{
+  "ModelName": "ukuaji",
+  "ModelMetadata": {
+    "Author": "Rosius Ndimofor ",
+    "DateCreated": "Jun 29, 2025, 10:54 AM",
+    "DateLastModified": "Jun 29, 2025, 05:54 PM",
+    "Description": "A data model for the Ukuaji Application",
+    "AWSService": "Amazon DynamoDB",
+    "Version": "3.0"
+  },
+  "DataModel": [
+    {
+      "TableName": "scheduledPostApplication",
+      "KeyAttributes": {
+        "PartitionKey": {
+          "AttributeName": "PK",
+          "AttributeType": "S"
+        },
+        "SortKey": {
+          "AttributeName": "SK",
+          "AttributeType": "S"
+        }
+      },
+      "NonKeyAttributes": [
+        {
+          "AttributeName": "id",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "username",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "firstName",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "lastName",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "about",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "email",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "userType",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "content",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "imageUrl",
+          "AttributeType": "L"
+        },
+        {
+          "AttributeName": "imageKeys",
+          "AttributeType": "L"
+        },
+        {
+          "AttributeName": "entity",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "schedule",
+          "AttributeType": "M"
+        },
+        {
+          "AttributeName": "tier",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "features",
+          "AttributeType": "L"
+        },
+        {
+          "AttributeName": "price",
+          "AttributeType": "N"
+        },
+        {
+          "AttributeName": "GSI1PK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI1SK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI2PK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI2SK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI3PK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI3SK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI4PK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI4SK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI5PK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI5SK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI6PK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI6SK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI7PK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "GSI7SK",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "userId",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "mediaType",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "s3BucketUriPlusKey",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "folder",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "video",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "autoRenew",
+          "AttributeType": "BOOL"
+        },
+        {
+          "AttributeName": "name",
+          "AttributeType": "S"
+        },
+        {
+          "AttributeName": "promptContent",
+          "AttributeType": "S"
+        }
+      ],
+      "TableFacets": [
+        {
+          "FacetName": "User",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "PK",
+            "SortKeyAlias": "SK"
+          },
+          "TableData": [
+            {
+              "PK": {
+                "S": "USER#b02e11e2-3720-4233-a657-26acf3bd7686"
+              },
+              "SK": {
+                "S": "USER#b02e11e2-3720-4233-a657-26acf3bd7686"
+              },
+              "id": {
+                "S": "b02e11e2-3720-4233-a657-26acf3bd7686"
+              },
+              "username": {
+                "S": "ro"
+              },
+              "firstName": {
+                "S": "Rosius"
+              },
+              "lastName": {
+                "S": "Ndimofor"
+              },
+              "about": {
+                "S": "I'm a software Engineer"
+              },
+              "email": {
+                "S": "test@gmail.com"
+              },
+              "userType": {
+                "S": "ADMIN"
+              },
+              "entity": {
+                "S": "USER"
+              },
+              "GSI1PK": {
+                "S": "USER#"
+              },
+              "GSI1SK": {
+                "S": "USER#b02e11e2-3720-4233-a657-26acf3bd7686"
+              },
+              "GSI6PK": {
+                "S": "b02e11e2-3720-4233-a657-26acf3bd7686"
+              },
+              "GSI6SK": {
+                "S": "SUBSCRIPTION#"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "id",
+            "username",
+            "firstName",
+            "lastName",
+            "about",
+            "email",
+            "userType",
+            "entity",
+            "GSI1PK",
+            "GSI1SK",
+            "GSI6PK",
+            "GSI6SK"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "Post",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "PK",
+            "SortKeyAlias": "SK"
+          },
+          "TableData": [
+            {
+              "PK": {
+                "S": "POST#411ad940-1493-4a82-be36-3ac2e3572cb8"
+              },
+              "SK": {
+                "S": "POST#411ad940-1493-4a82-be36-3ac2e3572cb8"
+              },
+              "id": {
+                "S": "411ad940-1493-4a82-be36-3ac2e3572cb8"
+              },
+              "content": {
+                "S": "this is some content"
+              },
+              "imageUrl": {
+                "L": []
+              },
+              "imageKeys": {
+                "L": []
+              },
+              "entity": {
+                "S": "POST"
+              },
+              "schedule": {
+                "M": {
+                  "M": {
+                    "day": {
+                      "N": "26"
+                    },
+                    "hour": {
+                      "N": "11"
+                    },
+                    "minute": {
+                      "N": "13"
+                    },
+                    "month": {
+                      "N": "6"
+                    },
+                    "second": {
+                      "N": "0"
+                    },
+                    "year": {
+                      "N": "2025"
+                    }
+                  }
+                }
+              },
+              "GSI2PK": {
+                "S": "POST#"
+              },
+              "GSI2SK": {
+                "S": "POST#411ad940-1493-4a82-be36-3ac2e3572cb8"
+              },
+              "GSI3PK": {
+                "S": "USER#b02e11e2-3720-4233-a657-26acf3bd7686"
+              },
+              "GSI3SK": {
+                "S": "POST#411ad940-1493-4a82-be36-3ac2e3572cb8"
+              },
+              "userId": {
+                "S": "test@gmail.com"
+              }
+            }
+          ],
+          "NonKeyAttributes": [
+            "id",
+            "content",
+            "imageUrl",
+            "imageKeys",
+            "entity",
+            "schedule",
+            "GSI2PK",
+            "GSI2SK",
+            "GSI3PK",
+            "GSI3SK",
+            "userId"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "Gallery",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "PK",
+            "SortKeyAlias": "SK"
+          },
+          "TableData": [],
+          "NonKeyAttributes": [
+            "entity",
+            "userId",
+            "mediaType",
+            "s3BucketUriPlusKey",
+            "folder",
+            "video"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "Subscription",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "PK",
+            "SortKeyAlias": "SK"
+          },
+          "TableData": [
+            {
+              "PK": {
+                "S": "SUBSCRIPTION#5ffc7fd6-5851-4d0f-bba1-692c4804a925"
+              },
+              "SK": {
+                "S": "SUBSCRIPTION#5ffc7fd6-5851-4d0f-bba1-692c4804a925"
+              },
+              "entity": {
+                "S": "SUBSCRIPTION"
+              },
+              "tier": {
+                "S": "BASIC"
+              },
+              "features": {
+                "L": []
+              },
+              "price": {
+                "N": "0.0"
+              }
+            }
+          ],
+          "NonKeyAttributes": ["entity", "tier", "features", "price"],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "UserSubscription",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "PK",
+            "SortKeyAlias": "SK"
+          },
+          "TableData": [],
+          "NonKeyAttributes": [
+            "entity",
+            "GSI6PK",
+            "GSI6SK",
+            "userId",
+            "autoRenew"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        },
+        {
+          "FacetName": "PromptTemplates",
+          "KeyAttributeAlias": {
+            "PartitionKeyAlias": "PK",
+            "SortKeyAlias": "SK"
+          },
+          "TableData": [],
+          "NonKeyAttributes": [
+            "id",
+            "entity",
+            "name",
+            "promptContent",
+            "GSI4SK",
+            "GSI4PK"
+          ],
+          "DataAccess": {
+            "MySql": {}
+          }
+        }
+      ],
+      "GlobalSecondaryIndexes": [
+        {
+          "IndexName": "getAllUsers",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "GSI1PK",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "GSI1SK",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "ALL"
+          }
+        },
+        {
+          "IndexName": "getAllPosts",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "GSI2PK",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "GSI2SK",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "ALL"
+          }
+        },
+        {
+          "IndexName": "getAllUserPosts",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "GSI3PK",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "GSI3SK",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "ALL"
+          }
+        },
+        {
+          "IndexName": "getAllPrompts",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "GSI4PK",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "GSI4SK",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "ALL"
+          }
+        },
+        {
+          "IndexName": "getAllSubscriptions",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "GSI5PK",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "GSI5SK",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "ALL"
+          }
+        },
+        {
+          "IndexName": "getUserSubscriptions",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "GSI6PK",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "GSI6SK",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "ALL"
+          }
+        },
+        {
+          "IndexName": "getUserGallery",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "GSI7PK",
+              "AttributeType": "S"
+            },
+            "SortKey": {
+              "AttributeName": "GSI7SK",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "ALL"
+          }
+        },
+        {
+          "IndexName": "getUserByEmail",
+          "KeyAttributes": {
+            "PartitionKey": {
+              "AttributeName": "email",
+              "AttributeType": "S"
+            }
+          },
+          "Projection": {
+            "ProjectionType": "INCLUDE",
+            "NonKeyAttributes": [
+              "id",
+              "username",
+              "firstName",
+              "lastName",
+              "about",
+              "userType"
+            ]
+          }
+        }
+      ],
+      "DataAccess": {
+        "MySql": {}
+      },
+      "SampleDataFormats": {},
+      "BillingMode": "PAY_PER_REQUEST"
+    }
+  ]
+}

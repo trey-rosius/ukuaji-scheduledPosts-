@@ -1,104 +1,65 @@
-# Welcome to Ukuaji
+## Entities
 
-![solutions architecture](/assets/scheduled_post.drawio.png)
+- USER
+- POST
+- SUBSCRIPTION
+- USER SUBSCRIPTION
+- PROMPT TEMPLATES
+- USER GALLERY
 
-- [Introduction](/docs/1.introduction.md)
+## Access Patterns
 
-## Inspiration
+### USERS
 
-At Educloud Academy ([educloud.academy](https://educloud.academy)), we
-specialize in teaching AWS Cloud Computing and Artificial Intelligence through
-practical, hands-on workshops. Over time, we've developed extensive and diverse
-content including:
+- Create User
+- Get User
+- Get User By Email
+- Update User
 
-- Text-based materials
-- Rich visuals (Images)
-- Informative and engaging Videos
+### POSTS
 
-However, we currently face two significant challenges that are hindering our
-growth:
+- Create Post
+- Delete Post
+- Get User Posts
 
-### 1. Marketing and Distribution
+### PROMPT TEMPLATES
 
-Despite producing high-quality, highly praised content, we struggle with
-consistent and effective content distribution on social media platforms. This
-inconsistency severely impacts our visibility and sales potential. While
-reviewers frequently commend our content for its uniqueness, they often describe
-our platform as "underrated" or hidden. Consistent content creation and social
-media engagement are difficult tasks, consuming considerable time and resources,
-which we currently lack.
+- Create Template(Admins Only)
+- Update Template(Admins Only)
+- Get Template
+- Get All Templates
 
-### 2. Bilingual Content Delivery
+### SUBSCRIPTIONS
 
-Our second critical challenge arises from our recent outreach efforts at local
-universities, specifically in Douala, Cameroon. Being situated in a bilingual
-region, we've found that students, especially those from the Francophone
-community, strongly prefer educational materials delivered in French rather than
-English.
+- Create Subscription(Admins Only)
+- Create User Subscription
+- Get All Subscription
+- Get Subscription
+- Get User Subscription
 
-- https://www.linkedin.com/feed/update/urn:li:activity:7343176260212154368
-- https://www.linkedin.com/feed/update/urn:li:activity:7329411099533975552
+### GALLERY
 
-To effectively reach and engage both Anglophone and Francophone audiences, it’s
-important that our content becomes fully bilingual. However, producing high
-quality content in multiple languages consistently remains a considerable
-hurdle.
+- Get User Gallery
 
-In response, we've searched the market for applications capable of meeting these
-requirements comprehensively. Unfortunately, we've found few platforms
-adequately catering to our specific needs.But they aren't affordable at this
-point for us.
+## DynamoDB Nosql Workbench
 
-Our ideal solution would be an app capable of intelligently consuming and
-repurposing our existing content into engaging, multilingual social media posts
-without compromising our content’s privacy and security. Ensuring our
-proprietary workshop content remains secure, private, and under our direct
-control is of paramount importance to us.
+- [Ukuaji Nosql Schema](/assets/ukuaji.json)
 
-`Ukuaji` has been developed to meet exactly these unique challenges, ensuring
-Educloud Academy achieves sustained growth, broader reach, and deeper engagement
-with diverse audiences.
+## Overview
 
-Also, we plan to make the app multi-tenant and privacy first to have other
-organizations or individuals grow their social accounts or create unique content
-for themselves as well.
-
-## What it does
-
-`Ukuaji` is Serverless Appsync API which provides
-
-- a robust Multimodal RAG Pipeline(Built with AWS Bedrock knowledge base,
-  Pinecone and Strands Agent) that enables users to feed information to their
-  knowledge bases and l
-- An Image generation(Amazon Nova Canvas) endpoint to generate images for your
-  content.
-- A video generation endpoint for videos(Amazon Nova Reel)
-- An Event driven Scheduler using AWS Eventbridge Scheduler which is scalable
-  and enables users to schedule their content for different social media
-  platforms.
-- A Prompt Template repository for prompt ideas and inspiration
-- A subscription Model for monetization
-
-## How we built it
-
-This solution is completely serverless. I built the frontend, which is a mobile
-application with AWS Amplify and flutter, utilizing amplify client libraries
-such as
-
-- Amplify Cognito for authentication
-- Amplify Storage for media storage
-- Amplify API for graphql API
-
-Then for the backend, i choose to go with an Appsync Graphql API. Because,
+This is an Appsync Graphql API. I choosed Appsync due to a couple of reasons.
 
 1. It's realtime capabilities using subscriptions and offline support with
    Amplify Clients.
 
-Graphql works seemlessly with mobile frontends and makes realtime communication
-a breeze. As it'll be illustrated in the video.
+The frontend for this application is a mobile app(It'll be illustrated later).To
+ensure a good User Experience, it's emperical to always provide immediate
+feedback on all events going through the app.
 
-Als, there's no need to write extra code to add real-time capabilities to your
-Appsync API.
+The easiest way to do this is to make your application, real-time aware. Appsync
+makes this step a lot easier with subscriptions.
+
+And you don't need to write extra code to add real-time capabilities to Appsync.
 
 For offline support, Using the Amplify client, we can queue mutations offline
 and sync when back online (conflict resolution included).
@@ -308,24 +269,25 @@ this.api.createResolver("CreateUserAccount", {
 });
 ```
 
-## Content Brain(Multimodal RAG pipeline on Amazon Bedrock (Titan Text embedding v2 & Claude 3) + Pinecone vector store + Strands Agents)
+## Creating a RAG Agent
 
-This application has a durable MultiModal RAG pipeline built with AWS Bedrock
-Knowledge bases,AWS Stepfunctions, Pinecone and Strands Agent, giving users the
-possibility to upload
+This application supports MultiModal RAG pipeline, giving users the possibility
+to upload
 
 - Text
 - Audio
-- Video content to later on use in scenarios such as
+- Video content to a knowledge base and later use that data in multiple
+  scenarios such as
 - Creative Writing
 - Generating Context Aware Social Media Posts
-- Translations
 
 As a matter fact, by enabling users to upload content to their knowledge bases,
-you give them the possibility to generate content with respect to their context
-and not generic scenarios.
+you give them the possibility to generate content with respect to their context.
 
-Here's the solution architecture for this pipeline
+For this use case, we'll use Amazon Bedrock Knowledge bases, A custom datasource
+and Strands Agent.
+
+Here's the solution architecture for this functionality
 
 ![Upload Content Agent](/assets/upload_content_agent.png)
 
@@ -334,16 +296,11 @@ to the `uploads/` folder of
 `${cdk.Stack.of(this).account}-${cdk.Stack.of(this).region}-saturn-media` S3
 bucket.
 
-A Lambda function(`inject files lambda`) gets triggered by the S3 bucket. This
-function gets the content from the S3 bucket, extracts relevant information such
-as file extension, size, s3 Uri and sends it as a message to an Amazon SQS
-Queue. We use a Queue here to decouple our application, thereby making it fault
-tolerant and scalable. Attached to our Queue is a Dead Letter Queue(DLQ) which
-catches and stores unprocessed messages for a duration of 14 days.
-
-These messages can be accessed and `redrive` by the systems administrator.
-
-This adds another level of reliabitity to the application.
+A Lambda function gets triggered by the S3 bucket. This function gets the
+content from S3 and sends it as a message into an Amazon SQS Queue. We use a
+Queue here to decouple our application, thereby making it fault tolerant and
+scalable. Attached to our Queue is a Dead Letter Queue(DLQ) which catches and
+stores unprocessed messages for a duration of 14 days.
 
 ```ts
 // Create an SQS queue for processing uploaded files
@@ -361,28 +318,22 @@ this.processingQueue = new sqs.Queue(this, "ProcessingQueue", {
 });
 ```
 
-Another lambda function(`SQS poller lambda`) polls for available messages inside
-the SQS Queue, grabs the messages and then invokes a path, based on the uploaded
-file's `extension`.
+Another lambda function polls for available messages inside the SQS Queue, grabs
+the messages and then invokes a path, based on the uploaded file extension.
 
-There are 3 paths to choose from.
+If the file was a `.md/.csv` file, the text is extracted and stored inside a
+knowledge base, using an AI Agent.
 
-1. If the file's extension is `.md/.csv`, the text is immediately extracted and
-   stored inside a knowledge base, using an AI Agent.
+If the file was `.pdf`, an AWS Step functions worflow is invoked. This workflow
+uses Amazon Textract to extract the text from the PDF file, and then saved to
+the knowledge through the AI Agent.
+![textract text](/assets/textract_text_pdf.png)
 
-2. If the file's extension `.pdf`, an AWS Step functions worflow is invoked.
-   This workflow uses `Amazon Textract` to extract the text from the PDF file,
-   and then saves the text to a knowledge base using an AI Agent.
-   ![textract text](/assets/textract_text_pdf.png)
-
-The Step functions workflow uses no lambda functions, thereby reducing the
-overall cost of running the application.
-
-3. If the file's extension is `.mp4/.mp3`, an AWS Step functions workflow is
-   invoked as well. This workflow uses `Amazon Transcribe` to automatically
-   convert spoken language in audio or video files into accurate, time-stamped
-   text which gets fed into a downstream lambda function, and saved to a
-   knowledge base by an AI agent.
+If the file was `.mp4/.mp3`, an AWS Step functions workflow is invoked as well.
+This workflow uses Amazon Transcribe to automatically convert spoken language in
+audio or video files into accurate, time-stamped text you and then fed into
+downstream lambda function, which gets saved into a knowledge base by an AI
+agent.
 
 ![transcribe audio video](/assets/transcribe_audio_video.png)
 
@@ -397,19 +348,16 @@ Here's the solutions architecture
 
 ![text generation strands](/assets/text_gen_strands.png)
 
-A user the capability to generate text using the strands Agent. No context from
-the users knowledge base is needed here.
-
-The text is streamed in realtime back to an Appsync subscription. So the
-susbcribed clients get each text chunk as it gets generated. One of the coolest
-features of the app. It'll be illustrated properly in the video.
+This endpoint gives a user the capability to generate text using the strands
+Agent. No context from the users knowledge base is used in this scenario. The
+text is streamed in realtime back to an Appsync subscription. So the susbcribed
+clients get each text chunk as it gets generated. One of the coolest features of
+the app. It'll be illustrated properly in the video.
 
 ## Text Generation with Bedrock Agents(With Knowledgebase)
 
-![text generation bedrock agents](/assets/bedrock_agent_kb.png)
-
-The user the capability to generate content with context from their knowledge
-bases.
+This endpoint gives the user the capability to generate content with context
+from their knowledge bases.
 
 For example, a here's a query
 
@@ -428,7 +376,7 @@ Let's see the response from the AI Agent
 "I apologize, but I don't have enough relevant information from the provided search results to answer your question about a Nanny Booking API presentation or childcare services. The search results primarily contain information about apartment booking systems and database architectures, which are not related to the topic you're asking about."
 ```
 
-It can't return a specific answer because it doesn't have the context yet. I
+It can't return a specific answer because it doesn't have the context. I
 could've attached a web search tool to the agent to search the web and return a
 web based response. I think i'll add that to the next version of the app.
 
@@ -443,25 +391,21 @@ The Nanny Booking API presentation content focuses on building a modern, scalabl
 
 ![nanny booking](/assets/nanny-booking.png)
 
-Now the response returns with the correct context.
-
-The knowledge base can be used as a very powerfull tool to give the user
-insights on their upload content, drawing similarities between different
-entities.This is very important for creative content writing. Also, we can go
-further by creating content in different languages, creative assessments for
-educational purposes and a lot more.
+So we can see how this feature can be used for creative content writing. Also,
+we can go further by creating content in different languages, creative
+assessments for educational focus content etc.
 
 ## Image Generation with Amazon Nova Canvas
 
-Users can generate images with Amazon's flagship Foundation Model call
-`Nova Canvas`.
+This api allows users to generate images with Amazon's flagship Foundation Model
+call `Nova Canvas`.
 
 ![generate image](/assets/generate_image.png)
 
 ## Video Generation with Amazon Nova Reels
 
-Users can generate videos as well, using a step functions workflow to without
-needing lambda functions.
+This endpoint is kind of interesting. It uses a step functions workflow to
+generate videos for your application without using lambda functions.
 
 ![generate videos](/assets/generate_videos.png)
 
@@ -510,46 +454,3 @@ more templates. Users can remix the templates to suit their use cases.
 Because we plan to monetize this service, i started working on a subscription
 service for the platform. Currently, admins can create/update subscriptions and
 users can subscribe. Currently there's no payment gateway attached.
-
-## Challenges we ran into
-
-- Calculating tokens consumed by each AI endpoint.
-- Writing integration tests for the Event Driven Endpoints
-- Video Generation using only the AWS Stepfunctions workflow and no lambda
-  functions.
-- Textract large PDF files through AWS Stepfunctions. I hit the 256KB limit
-  multiple times.
-- Strands `Store` and `Retrieve` tools for working with Knowledge bases.Still
-  buggy and the `retrieve` tool takes a very long time to retrieve information
-  from the knowledge base
-- Nova video generation models(Nova Reels) aren't the best for generate POV or
-  Faceless videos
-- Properly calculate how many tokens each ai request/response consumes.
-
-## Accomplishments that we're proud of
-
-- Created a working prototype within a month
-- Used the app to generate my first Social Media Content.
-
-## What we learned
-
-- Learned how to create durable RAG Pipelines with Amazon Knowledge bases , AWS
-  Step functions and Strands agents.
-- Learned how to generate videos using direct service integrations inside of AWS
-  Step functions and no lambda functions.
-- Learned how to trigger Appsync Mutations from an Eventbridge Rule for real
-  time subscriptions
-- Learned how to dynamically Schedule Task using the AWS Eventbridge Scheduler
--
-
-## What's next for Ukuaji
-
-- Add proper video generation tools to create faceless video content, voice.
-- Properly work on making the knowledge bases Multi-tenant.
-- Add Encryption to users data stores in S3
-- Add the possibility to calculate the amount of tokens consumed by each
-  generation tasks.
-- Add Monetization
-- Apply for `X/Blue Sky/Pinterest/Instagram /Threads API` endpoints to
-  automatically posts on their platforms if the user has accounts on those.
-- Deploy the app as a SAAS Service and use it for marketing .

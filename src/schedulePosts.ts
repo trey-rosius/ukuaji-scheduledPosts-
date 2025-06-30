@@ -12,6 +12,41 @@ import {
 } from "@aws-sdk/client-scheduler";
 import { addMinutes, addDays, addMonths } from "date-fns";
 import type { EventBridgeEvent } from "aws-lambda";
+
+function buildAtExpression(
+  schedule: {
+    year: number;
+    month: number;
+    day: number;
+    hour: number;
+    minute: number;
+    second: number;
+  },
+  now: Date = new Date()
+): string {
+  const targetLocal = new Date(
+    schedule.year,
+    schedule.month - 1,
+    schedule.day,
+    schedule.hour,
+    schedule.minute,
+    schedule.second
+  );
+
+  const diffMs = targetLocal.getTime() - now.getTime();
+  const diffMinutes = Math.floor(diffMs / 60_000);
+
+  if (diffMinutes <= 0) {
+    throw new Error(
+      `Scheduled time ${targetLocal.toISOString()} is in the past (${diffMinutes} minutes).`
+    );
+  }
+
+  logger.info(`diffMinutes is ${diffMinutes}`);
+
+  const iso = addMinutes(now, diffMinutes).toISOString().split(".")[0];
+  return `at(${iso})`;
+}
 type DynamoDBPost = {
   id: { S: string };
   content: { S: string };
@@ -67,12 +102,32 @@ export const handler = async (
   logger.info(`records are ${JSON.stringify(records)}`);
 
   const id = records.posts.id.S;
+  const userId = records.posts.userId.S;
+
+  const schedule = records.posts.schedule?.M;
+  const day = schedule!.day.N;
+  const hour = schedule!.hour.N;
+  const minute = schedule!.minute.N;
+  const month = schedule!.month.N;
+  const second = schedule!.second.N;
+  const year = schedule!.year.N;
+
+  logger.info(`schedule is ${JSON.stringify(schedule)}`);
+  const scheduleExpression = buildAtExpression({
+    year: parseInt(year),
+    month: parseInt(month),
+    day: parseInt(day),
+    hour: parseInt(hour),
+    minute: parseInt(minute),
+    second: parseInt(second),
+  });
+
   logger.info(`post id is ${JSON.stringify(records.posts.id.S)}`);
   // Schedule for welcome email 2 minutes after sign up
   await createSchedule({
-    name: `${id}-24hr-after-post-create`,
-    description: `New post scheduled with id:${id}`,
+    name: `${id}-scheduled-post`,
+    description: `Post ${id} scheduled by ${userId}`,
     payload: { ...event.detail, context: "24hr" },
-    time: `at(${addMinutes(new Date(), 2).toISOString().split(".")[0]})`,
+    time: scheduleExpression,
   });
 };

@@ -5,10 +5,18 @@ schema {
 }
 
 type Query {
-  getPost(id: String!): Post! @aws_api_key
-  getAllPosts(limit: Int!, nextToken: String): PostsResult! @aws_api_key
-  getUserAccount(id: String!): User! @aws_api_key
-  getGeneratedPostAgent(input: String!, userId: String): String! @aws_api_key
+  getPost(id: String!): Post! @aws_api_key @aws_cognito_user_pools
+  getAllPosts(limit: Int!, nextToken: String): PostsResult!
+    @aws_api_key
+    @aws_cognito_user_pools
+  getUserPosts(userId: String!, limit: Int!, nextToken: String): PostsResult!
+    @aws_api_key
+    @aws_cognito_user_pools
+  getUserAccount(id: String!): User! @aws_cognito_user_pools @aws_api_key
+
+  getUserGallery(userId: String!): Gallery! @aws_api_key @aws_cognito_user_pools
+
+  getAgentContext(input: AgentContextInput!): AgentContextResponse! @aws_api_key
 
   getUserByEmail(email: String!): User @aws_cognito_user_pools @aws_api_key
   generateImages(input: String!): [String!]! @aws_api_key
@@ -16,11 +24,48 @@ type Query {
     @aws_api_key
   replaceImageBackground(input: ReplaceImageBackgroundInput!): [String!]!
     @aws_api_key
+
+  # Prompt templates queries
+  getPromptTemplate(id: String!): PromptTemplate! @aws_api_key
+  getAllPromptTemplates(limit: Int!, nextToken: String): PromptTemplatesResult!
+    @aws_api_key
+
+  # Subscription queries
+  getSubscription(tier: String!): SubscriptionPlan!
+    @aws_cognito_user_pools
+    @aws_api_key
+  getUserSubscription(userId: String!, tier: String!): UserSubscriptionPlan
+    @aws_cognito_user_pools
+    @aws_api_key
+  getAllSubscriptions(limit: Int!, nextToken: String): SubscriptionsResult!
+    @aws_cognito_user_pools
+    @aws_api_key
+  getAllUserSubscriptions(
+    limit: Int!
+    nextToken: String
+  ): UserSubscriptionsResult! @aws_cognito_user_pools @aws_api_key
+}
+
+type Gallery @aws_api_key @aws_cognito_user_pools {
+  userId: String!
+  mediaType: String!
+  s3BucketUriPlusKey: String!
+  folder: String!
+  video: String!
+}
+input AgentContextInput @aws_api_key {
+  query: String!
+  session_id: String
 }
 input ImageGuidedGenerationInput @aws_api_key {
   prompt: String!
   conditionImage: String!
   numOfImages: Int!
+}
+
+type AgentContextResponse @aws_api_key {
+  response: String!
+  session_id: String!
 }
 
 input ReplaceImageBackgroundInput @aws_api_key {
@@ -31,11 +76,18 @@ input ReplaceImageBackgroundInput @aws_api_key {
 }
 
 type Mutation {
-  startStateMachine(input: startStateMachineInput!): Boolean! @aws_api_key
-  createUserAccount(userInput: CreateUserInput!): User! @aws_api_key
+  startAgentStateMachine(input: StartAgentStateMachineInput!): Boolean!
+    @aws_api_key
+  createUserAccount(userInput: CreateUserInput!): User! @aws_cognito_user_pools
   updateUserAccount(userInput: UpdateUserInput!): User! @aws_cognito_user_pools
-  createPost(postInput: CreatePostInput!): Post! @aws_api_key
+  createPost(postInput: CreatePostInput!): Post!
+    @aws_api_key
+    @aws_cognito_user_pools
   updatePost(postInput: UpdatePostInput!): Post! @aws_cognito_user_pools
+  getGeneratedPostAgent(
+    input: String!
+    userId: String!
+  ): OnGeneratedTextAgentResponse! @aws_api_key @aws_iam
   deletePost(userId: String!, postId: String!): Boolean! @aws_api_key
   retrieveAndGenerateResponse(input: RetrieveAndGenerateResponseInput!): String
     @aws_api_key
@@ -46,6 +98,40 @@ type Mutation {
   generateImagesResponse(input: [String!]!): GeneratedImageResponse!
     @aws_iam
     @aws_api_key
+
+  generateTextToVideo(input: TextToVideoInput!): Boolean! @aws_api_key
+
+  # Prompt templates mutations
+  createPromptTemplate(input: CreatePromptTemplateInput!): PromptTemplate!
+    @aws_api_key
+  updatePromptTemplate(input: UpdatePromptTemplateInput!): PromptTemplate!
+    @aws_api_key
+  deletePromptTemplate(id: String!): Boolean! @aws_api_key
+
+  # Subscription mutations
+  createSubscription(input: CreateSubscriptionInput!): SubscriptionPlan!
+    @aws_cognito_user_pools
+    @aws_api_key
+
+  updateSubscription(input: UpdateSubscriptionInput!): SubscriptionPlan!
+    @aws_cognito_user_pools
+    @aws_api_key
+  cancelUserSubscription(id: String!, userId: String!): Boolean!
+    @aws_cognito_user_pools
+    @aws_api_key
+  createUserSubscription(
+    input: CreateUserSubscriptionInput!
+  ): UserSubscriptionPlan! @aws_cognito_user_pools @aws_api_key
+  updateUserSubscription(
+    input: UpdateUserSubscriptionInput!
+  ): UserSubscriptionPlan! @aws_cognito_user_pools @aws_api_key
+}
+
+input TextToVideoInput @aws_api_key {
+  query: String!
+  bucketUri: String!
+  folderUUID: String!
+  userId: String!
 }
 
 input RetrieveAndGenerateResponseInput @aws_api_key {
@@ -60,11 +146,36 @@ type GeneratedTextResponse @aws_iam @aws_api_key {
   text: String!
 }
 
-input startStateMachineInput @aws_api_key {
-  prompts: String!
+type OnGeneratedTextAgentResponse @aws_iam @aws_api_key {
+  text: String!
 }
 
-input CreateUserInput @aws_api_key {
+enum PLATFORM @aws_api_key {
+  X
+  LINKEDIN
+  FACEBOOK
+  WEB
+}
+enum TONE @aws_api_key {
+  FRIENDLY
+  PROFESSIONAL
+  HUMOROUS
+  MOTIVATIONAL
+}
+enum POST_LENGTH @aws_api_key {
+  SHORT
+  LONG
+}
+
+input StartAgentStateMachineInput @aws_api_key {
+  platform: PLATFORM!
+  topic: String!
+  tone: TONE!
+  length: POST_LENGTH!
+  useKB: Boolean!
+}
+
+input CreateUserInput @aws_cognito_user_pools {
   username: String!
   firstName: String!
   lastName: String!
@@ -83,7 +194,7 @@ input UpdateUserInput @aws_cognito_user_pools {
   address: AddressInput!
 }
 
-type User @aws_api_key {
+type User @aws_cognito_user_pools @aws_api_key {
   id: String!
   username: String!
   firstName: String!
@@ -94,6 +205,7 @@ type User @aws_api_key {
   email: AWSEmail!
   profilePicUrl: String!
   profilePicKey: String!
+  subscription: SubscriptionPlan
   createdOn: AWSTimestamp
   updatedOn: AWSTimestamp
 }
@@ -116,7 +228,7 @@ input CreatePostInput @aws_api_key {
   imageKeys: [String!]
   entity: String!
   userId: String!
-  schedule: PostScheduleInput!
+  schedule: PostScheduleInput
   schedulePost: Boolean!
 }
 
@@ -147,7 +259,7 @@ input UpdatePostInput @aws_api_key {
   schedulePost: Boolean!
 }
 
-type Post @aws_api_key {
+type Post @aws_api_key @aws_cognito_user_pools {
   id: String!
   userId: String!
   content: String!
@@ -162,6 +274,7 @@ type Post @aws_api_key {
 
 type Subscription {
   createdPost: Post @aws_subscribe(mutations: ["createPost"])
+
   onGeneratedTextResponse: GeneratedTextResponse
     @aws_api_key
     @aws_subscribe(mutations: ["generatedText"])
@@ -169,8 +282,20 @@ type Subscription {
   onGeneratedImagesResponse: GeneratedImageResponse
     @aws_api_key
     @aws_subscribe(mutations: ["generateImagesResponse"])
+
+  # Prompt templates subscription
+  createdPromptTemplate: PromptTemplate
+    @aws_subscribe(mutations: ["createPromptTemplate"])
+
+  # User subscription events
+  createdSubscription: SubscriptionPlan
+    @aws_api_key
+    @aws_subscribe(mutations: ["createSubscription"])
+  updatedSubscription: SubscriptionPlan
+    @aws_api_key
+    @aws_subscribe(mutations: ["updateSubscription"])
 }
-type PostsResult @aws_api_key {
+type PostsResult @aws_api_key @aws_cognito_user_pools {
   items: [Post!]!
   nextToken: String
 }
@@ -178,4 +303,113 @@ type PostsResult @aws_api_key {
 enum USERTYPE {
   ADMIN
   MEMBER
+}
+
+enum SUBSCRIPTION_TIER {
+  BASIC
+  STANDARD
+  PREMIUM
+}
+enum SUBSCRIPTION_STATUS {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+input SubscriptionFeaturesInput {
+  postsPerMonth: Int!
+  mediaStorageGB: Int!
+  knowledgeBaseAvailable: Boolean!
+  aiGenerationCredits: Int!
+  supportLevel: String!
+}
+
+type SubscriptionFeatures {
+  postsPerMonth: Int!
+  mediaStorageGB: Int!
+  knowledgeBaseAvailable: Boolean!
+  aiGenerationCredits: Int!
+  supportLevel: String!
+}
+
+type UserSubscriptionPlan {
+  id: String!
+  userId: String!
+  tier: SUBSCRIPTION_TIER!
+  features: SubscriptionFeatures!
+  startDate: AWSTimestamp!
+  endDate: AWSTimestamp!
+  autoRenew: Boolean!
+  price: Float!
+  status: SUBSCRIPTION_STATUS!
+  createdOn: AWSTimestamp!
+  updatedOn: AWSTimestamp
+}
+
+type SubscriptionPlan {
+  id: String
+  tier: SUBSCRIPTION_TIER!
+  features: SubscriptionFeatures!
+  price: Float!
+  createdOn: AWSTimestamp!
+  updatedOn: AWSTimestamp
+}
+
+type UserSubscriptionsResult {
+  items: [UserSubscriptionPlan!]!
+  nextToken: String
+}
+
+type SubscriptionsResult {
+  items: [SubscriptionPlan!]!
+  nextToken: String
+}
+
+input CreateSubscriptionInput {
+  tier: SUBSCRIPTION_TIER!
+  features: SubscriptionFeaturesInput!
+  price: Float!
+}
+input UpdateSubscriptionInput {
+  id: ID!
+  tier: SUBSCRIPTION_TIER!
+  features: SubscriptionFeaturesInput!
+  price: Float!
+}
+
+input CreateUserSubscriptionInput {
+  userId: String!
+  tier: SUBSCRIPTION_TIER!
+  autoRenew: Boolean!
+}
+
+input UpdateUserSubscriptionInput {
+  id: String!
+  userId: String!
+  tier: SUBSCRIPTION_TIER!
+  autoRenew: Boolean!
+}
+
+# Prompt template types
+type PromptTemplate @aws_api_key {
+  id: String!
+  name: String!
+  content: String!
+  createdOn: AWSTimestamp!
+  updatedOn: AWSTimestamp
+}
+
+input CreatePromptTemplateInput @aws_api_key {
+  name: String!
+  content: String!
+}
+
+input UpdatePromptTemplateInput @aws_api_key {
+  id: String!
+  name: String!
+  content: String!
+}
+
+type PromptTemplatesResult @aws_api_key {
+  items: [PromptTemplate!]!
+  nextToken: String
 }
