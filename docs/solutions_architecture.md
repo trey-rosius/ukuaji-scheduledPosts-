@@ -1,6 +1,6 @@
 ## Solutions Architecture
 
-![solutions_architecture](/assets/solutions_architecture.png)
+![solutions architecture](/assets/scheduled_post.drawio.png)
 
 # AWS Services Used
 

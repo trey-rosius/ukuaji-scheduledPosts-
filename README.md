@@ -1,5 +1,7 @@
 # Welcome to Ukuaji
 
+![solutions architecture](/assets/scheduled_post.drawio.png)
+
 - [Introduction](/docs/1.introduction.md)
 
 ## Inspiration
@@ -403,6 +405,8 @@ susbcribed clients get each text chunk as it gets generated. One of the coolest
 features of the app. It'll be illustrated properly in the video.
 
 ## Text Generation with Bedrock Agents(With Knowledgebase)
+
+![text generation bedrock agents](/assets/bedrock_agent_kb.png)
 
 The user the capability to generate content with context from their knowledge
 bases.
