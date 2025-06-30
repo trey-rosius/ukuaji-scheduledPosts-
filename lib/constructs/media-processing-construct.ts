@@ -67,10 +67,10 @@ export class MediaProcessingConstruct extends Construct {
       knowledgeBase,
     } = props;
 
-    this.mediaBucket = new s3.Bucket(this, "SaturnDocsMediaBucket", {
+    this.mediaBucket = new s3.Bucket(this, "ScheduledPostDocsMediaBucket", {
       bucketName: `${cdk.Stack.of(this).account}-${
         cdk.Stack.of(this).region
-      }-saturn-media`,
+      }-media`,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.S3_MANAGED,
