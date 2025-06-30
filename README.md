@@ -79,19 +79,24 @@ for themselves as well.
 
 ## How we built it
 
-This is an Appsync Graphql API. I choosed Appsync due to a couple of reasons.
+This solution is completely serverless. I built the frontend, which is a mobile
+application with AWS Amplify and flutter, utilizing amplify client libraries
+such as
+
+- Amplify Cognito for authentication
+- Amplify Storage for media storage
+- Amplify API for graphql API
+
+Then for the backend, i choose to go with an Appsync Graphql API. Because,
 
 1. It's realtime capabilities using subscriptions and offline support with
    Amplify Clients.
 
-The frontend for this application is a mobile app(It'll be illustrated later).To
-ensure a good User Experience, it's emperical to always provide immediate
-feedback on all events going through the app.
+Graphql works seemlessly with mobile frontends and makes realtime communication
+a breeze. As it'll be illustrated in the video.
 
-The easiest way to do this is to make your application, real-time aware. Appsync
-makes this step a lot easier with subscriptions.
-
-And you don't need to write extra code to add real-time capabilities to Appsync.
+Als, there's no need to write extra code to add real-time capabilities to your
+Appsync API.
 
 For offline support, Using the Amplify client, we can queue mutations offline
 and sync when back online (conflict resolution included).
@@ -301,25 +306,24 @@ this.api.createResolver("CreateUserAccount", {
 });
 ```
 
-## Creating a RAG Agent
+## Content Brain(Multimodal RAG pipeline on Amazon Bedrock (Titan Text embedding v2 & Claude 3) + Pinecone vector store + Strands Agents)
 
-This application supports MultiModal RAG pipeline, giving users the possibility
-to upload
+This application has a durable MultiModal RAG pipeline built with AWS Bedrock
+Knowledge bases,AWS Stepfunctions, Pinecone and Strands Agent, giving users the
+possibility to upload
 
 - Text
 - Audio
-- Video content to a knowledge base and later use that data in multiple
-  scenarios such as
+- Video content to later on use in scenarios such as
 - Creative Writing
 - Generating Context Aware Social Media Posts
+- Translations
 
 As a matter fact, by enabling users to upload content to their knowledge bases,
-you give them the possibility to generate content with respect to their context.
+you give them the possibility to generate content with respect to their context
+and not generic scenarios.
 
-For this use case, we'll use Amazon Bedrock Knowledge bases, A custom datasource
-and Strands Agent.
-
-Here's the solution architecture for this functionality
+Here's the solution architecture for this pipeline
 
 ![Upload Content Agent](/assets/upload_content_agent.png)
 
@@ -328,11 +332,16 @@ to the `uploads/` folder of
 `${cdk.Stack.of(this).account}-${cdk.Stack.of(this).region}-saturn-media` S3
 bucket.
 
-A Lambda function gets triggered by the S3 bucket. This function gets the
-content from S3 and sends it as a message into an Amazon SQS Queue. We use a
-Queue here to decouple our application, thereby making it fault tolerant and
-scalable. Attached to our Queue is a Dead Letter Queue(DLQ) which catches and
-stores unprocessed messages for a duration of 14 days.
+A Lambda function(`inject files lambda`) gets triggered by the S3 bucket. This
+function gets the content from the S3 bucket, extracts relevant information such
+as file extension, size, s3 Uri and sends it as a message to an Amazon SQS
+Queue. We use a Queue here to decouple our application, thereby making it fault
+tolerant and scalable. Attached to our Queue is a Dead Letter Queue(DLQ) which
+catches and stores unprocessed messages for a duration of 14 days.
+
+These messages can be accessed and `redrive` by the systems administrator.
+
+This adds another level of reliabitity to the application.
 
 ```ts
 // Create an SQS queue for processing uploaded files
@@ -350,22 +359,28 @@ this.processingQueue = new sqs.Queue(this, "ProcessingQueue", {
 });
 ```
 
-Another lambda function polls for available messages inside the SQS Queue, grabs
-the messages and then invokes a path, based on the uploaded file extension.
+Another lambda function(`SQS poller lambda`) polls for available messages inside
+the SQS Queue, grabs the messages and then invokes a path, based on the uploaded
+file's `extension`.
 
-If the file was a `.md/.csv` file, the text is extracted and stored inside a
-knowledge base, using an AI Agent.
+There are 3 paths to choose from.
 
-If the file was `.pdf`, an AWS Step functions worflow is invoked. This workflow
-uses Amazon Textract to extract the text from the PDF file, and then saved to
-the knowledge through the AI Agent.
-![textract text](/assets/textract_text_pdf.png)
+1. If the file's extension is `.md/.csv`, the text is immediately extracted and
+   stored inside a knowledge base, using an AI Agent.
 
-If the file was `.mp4/.mp3`, an AWS Step functions workflow is invoked as well.
-This workflow uses Amazon Transcribe to automatically convert spoken language in
-audio or video files into accurate, time-stamped text you and then fed into
-downstream lambda function, which gets saved into a knowledge base by an AI
-agent.
+2. If the file's extension `.pdf`, an AWS Step functions worflow is invoked.
+   This workflow uses `Amazon Textract` to extract the text from the PDF file,
+   and then saves the text to a knowledge base using an AI Agent.
+   ![textract text](/assets/textract_text_pdf.png)
+
+The Step functions workflow uses no lambda functions, thereby reducing the
+overall cost of running the application.
+
+3. If the file's extension is `.mp4/.mp3`, an AWS Step functions workflow is
+   invoked as well. This workflow uses `Amazon Transcribe` to automatically
+   convert spoken language in audio or video files into accurate, time-stamped
+   text which gets fed into a downstream lambda function, and saved to a
+   knowledge base by an AI agent.
 
 ![transcribe audio video](/assets/transcribe_audio_video.png)
 
@@ -380,16 +395,17 @@ Here's the solutions architecture
 
 ![text generation strands](/assets/text_gen_strands.png)
 
-This endpoint gives a user the capability to generate text using the strands
-Agent. No context from the users knowledge base is used in this scenario. The
-text is streamed in realtime back to an Appsync subscription. So the susbcribed
-clients get each text chunk as it gets generated. One of the coolest features of
-the app. It'll be illustrated properly in the video.
+A user the capability to generate text using the strands Agent. No context from
+the users knowledge base is needed here.
+
+The text is streamed in realtime back to an Appsync subscription. So the
+susbcribed clients get each text chunk as it gets generated. One of the coolest
+features of the app. It'll be illustrated properly in the video.
 
 ## Text Generation with Bedrock Agents(With Knowledgebase)
 
-This endpoint gives the user the capability to generate content with context
-from their knowledge bases.
+The user the capability to generate content with context from their knowledge
+bases.
 
 For example, a here's a query
 
@@ -408,7 +424,7 @@ Let's see the response from the AI Agent
 "I apologize, but I don't have enough relevant information from the provided search results to answer your question about a Nanny Booking API presentation or childcare services. The search results primarily contain information about apartment booking systems and database architectures, which are not related to the topic you're asking about."
 ```
 
-It can't return a specific answer because it doesn't have the context. I
+It can't return a specific answer because it doesn't have the context yet. I
 could've attached a web search tool to the agent to search the web and return a
 web based response. I think i'll add that to the next version of the app.
 
@@ -423,21 +439,25 @@ The Nanny Booking API presentation content focuses on building a modern, scalabl
 
 ![nanny booking](/assets/nanny-booking.png)
 
-So we can see how this feature can be used for creative content writing. Also,
-we can go further by creating content in different languages, creative
-assessments for educational focus content etc.
+Now the response returns with the correct context.
+
+The knowledge base can be used as a very powerfull tool to give the user
+insights on their upload content, drawing similarities between different
+entities.This is very important for creative content writing. Also, we can go
+further by creating content in different languages, creative assessments for
+educational purposes and a lot more.
 
 ## Image Generation with Amazon Nova Canvas
 
-This api allows users to generate images with Amazon's flagship Foundation Model
-call `Nova Canvas`.
+Users can generate images with Amazon's flagship Foundation Model call
+`Nova Canvas`.
 
 ![generate image](/assets/generate_image.png)
 
 ## Video Generation with Amazon Nova Reels
 
-This endpoint is kind of interesting. It uses a step functions workflow to
-generate videos for your application without using lambda functions.
+Users can generate videos as well, using a step functions workflow to without
+needing lambda functions.
 
 ![generate videos](/assets/generate_videos.png)
 
