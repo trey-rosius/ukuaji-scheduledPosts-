@@ -546,6 +546,6 @@ users can subscribe. Currently there's no payment gateway attached.
 - Add the possibility to calculate the amount of tokens consumed by each
   generation tasks.
 - Add Monetization
-- Apply for X/Blue Sky/Pinterest/Instagram /Threads API endpoints to
+- Apply for `X/Blue Sky/Pinterest/Instagram /Threads API` endpoints to
   automatically posts on their platforms if the user has accounts on those.
 - Deploy the app as a SAAS Service and use it for marketing .
