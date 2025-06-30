@@ -60,7 +60,7 @@ export class SchedulePostsStack extends cdk.Stack {
         bucketName: "scheduled-posts-knowledge-base-data",
         pineconeConnectionString:
           process.env.PINECONE_CONNECTION_STRING ||
-          "https://eca-workshops-pbfqwcb.svc.aped-4627-b74a.pinecone.io", // Should be in environment variables
+          "https://scheduled-post-index-pbfqwcb.svc.aped-4627-b74a.pinecone.io", // Should be in environment variables
         pineconeCredentialsSecretArn:
           process.env.PINECONE_CREDENTIALS_SECRET_ARN ||
           "arn:aws:secretsmanager:us-east-1:132260253285:secret:pinecone-j4JvqP", // Should be in environment variables

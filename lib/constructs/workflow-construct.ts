@@ -75,7 +75,7 @@ export class WorkflowConstruct extends Construct {
     this.mediaBucket = new s3.Bucket(this, "MediaBucket", {
       bucketName: `${cdk.Stack.of(this).account}-${
         cdk.Stack.of(this).region
-      }-saturn-posts-media`,
+      }-scheduled-posts-media`,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.S3_MANAGED,

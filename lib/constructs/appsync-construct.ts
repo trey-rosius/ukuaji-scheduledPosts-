@@ -385,6 +385,30 @@ export function response(ctx) {
 
     // get user post
     this.api
+      .addDynamoDbDataSource("AllPostsDataSource", postsTable)
+      .createResolver("AllPostsResolver", {
+        typeName: "Query",
+        fieldName: "getAllPosts",
+        code: appsync.Code.fromAsset(
+          path.join(__dirname, "../../resolvers/posts/getAllPosts.js")
+        ),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      });
+
+    // get user post
+    this.api
+      .addDynamoDbDataSource("GetPostDataSource", postsTable)
+      .createResolver("GetPostResolver", {
+        typeName: "Query",
+        fieldName: "getPost",
+        code: appsync.Code.fromAsset(
+          path.join(__dirname, "../../resolvers/posts/getPost.js")
+        ),
+        runtime: appsync.FunctionRuntime.JS_1_0_0,
+      });
+
+    // get user post
+    this.api
       .addDynamoDbDataSource("UserPostsDataSource", postsTable)
       .createResolver("UserPostsResolver", {
         typeName: "Query",
