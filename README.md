@@ -7,3 +7,7 @@
 - [Access Patterns](/docs//access_patterns.md)
 - [Create Pinecone Index and Deploy ](/docs/create_pinecone_index_and_deploy.md)
 - [Testing](/docs/testing.md)
+
+- ![ad](https://raw.githubusercontent.com/trey-rosius/ukuaji-scheduledPosts-/main/assets/bedrock_agent_kb.png)
+
+![create-post](https://raw.githubusercontent.com/trey-rosius/ukuaji-scheduledPosts-/main/assets/create_post_solutions_architecture.png)
