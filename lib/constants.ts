@@ -72,8 +72,6 @@ export const TABLE_INDEXES = {
   USER_GALLERY: "getUserGallery",
   ALL_PROMPTS: "getAllPrompts",
   USER_BY_EMAIL: "getUserByEmail",
-  ALL_SUBSCRIPTIONS: "getAllSubscriptions",
-  USER_SUBSCRIPTIONS: "getUserSubscriptions",
   GET_USER_GALLERY: "getUserGallery",
 };
 

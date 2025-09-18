@@ -74,16 +74,6 @@ export interface WorkflowConstructProps {
    * The EventBridge event bus
    */
   eventBus: events.EventBus;
-
-  /**
-   * The Bedrock knowledge base
-   */
-  knowledgeBase: KnowledgeBaseBase;
-
-  /**
-   * The DynamoDB table for posts
-   */
-  postsTable: dynamodb.Table;
 }
 
 /**
@@ -154,23 +144,6 @@ export interface AppSyncConstructProps {
   scheduledRole: iam.Role;
 
   /**
-   * The Bedrock knowledge base
-   */
-  knowledgeBase: KnowledgeBaseBase;
-
-  /**
-   * Agent
-   */
-
-  agent: Agent;
-
-  /**
-   * Agent Alias
-   */
-
-  agentAlias: AgentAlias;
-
-  /**
    * invoke agent lambda functio
    */
 
@@ -194,11 +167,6 @@ export interface AppSyncConstructProps {
   generatePostAgentFunction: PythonFunction;
 
   startWorkflowFunction: NodejsFunction;
-
-  /**
-   * The Lambda function for invoking the text-to-video workflow
-   */
-  invokeTextToVideoFunction: NodejsFunction;
 }
 
 /**

@@ -10,7 +10,6 @@ import {
   COMMON_TAGS,
   COMMON_LAMBDA_ENV_VARS,
   DEFAULT_LAMBDA_MEMORY_SIZE,
-  DEFAULT_LOG_RETENTION_DAYS,
   DEFAULT_API_KEY_EXPIRATION_DAYS,
   BEDROCK_MODELS,
 } from "../constants";
@@ -36,25 +35,17 @@ export class AppSyncConstruct extends Construct {
 
   public readonly startWorkflowFunction: NodejsFunction;
 
-  /**
-   * The Lambda function for invoking the text-to-video workflow
-   */
-  public readonly invokeTextToVideoFunction: NodejsFunction;
-
   constructor(scope: Construct, id: string, props: AppSyncConstructProps) {
     super(scope, id);
 
     const {
       postsTable,
       scheduledRole,
-      knowledgeBase,
       invokeAgentLambda,
       postScheduledGroupName,
       startWorkflowFunction,
       generatePostAgentFunction,
-
       userPool,
-      invokeTextToVideoFunction,
     } = props;
 
     // Calculate API key expiration date
@@ -93,11 +84,6 @@ export class AppSyncConstruct extends Construct {
       },
     });
 
-    // Add environment variables to the API
-    this.api.addEnvironmentVariable(
-      "KNOWLEDGEBASE_ID",
-      knowledgeBase.knowledgeBaseId
-    );
     this.api.addEnvironmentVariable(
       "FOUNDATION_MODEL_ARN",
       BEDROCK_MODELS.CLAUDE_3_5_SONNET
@@ -132,36 +118,6 @@ export class AppSyncConstruct extends Construct {
       assumedBy: new iam.ServicePrincipal("appsync.amazonaws.com"),
       description: "Role for AppSync to invoke Bedrock models",
     });
-
-    // Create a data source for Bedrock Retrieve and Generate
-    const bedrockRetrieveAndGenerateDS = this.api.addHttpDataSource(
-      "BedrockRetrieveAndGenerateDS",
-      `https://bedrock-agent-runtime.us-east-1.amazonaws.com`,
-      {
-        authorizationConfig: {
-          signingRegion: "us-east-1",
-          signingServiceName: "bedrock",
-        },
-      }
-    );
-
-    // Grant permissions to the Bedrock data source
-    bedrockRetrieveAndGenerateDS.grantPrincipal.addToPrincipalPolicy(
-      new iam.PolicyStatement({
-        resources: [
-          BEDROCK_MODELS.CLAUDE_3_5_SONNET,
-          `arn:aws:bedrock:us-east-1:${
-            cdk.Stack.of(this).account
-          }:knowledge-base/${knowledgeBase.knowledgeBaseId}`,
-        ],
-        actions: [
-          "bedrock:InvokeModel",
-          "bedrock:Retrieve",
-          "bedrock:RetrieveAndGenerate",
-        ],
-        effect: iam.Effect.ALLOW,
-      })
-    );
 
     // Grant permissions to the Bedrock role
     bedrockRole.addToPrincipalPolicy(
@@ -360,17 +316,6 @@ export function response(ctx) {
       })
     );
 
-    // Create a resolver for retrieving and generating responses
-    this.api.createResolver("RetrieveAndGenerateResponseResolver", {
-      typeName: "Mutation",
-      fieldName: "retrieveAndGenerateResponse",
-      dataSource: bedrockRetrieveAndGenerateDS,
-      runtime: appsync.FunctionRuntime.JS_1_0_0,
-      code: appsync.Code.fromAsset(
-        path.join(__dirname, "../../resolvers/retrieveAndGenerateResponse.js")
-      ),
-    });
-
     // Create a data source for the posts table
     this.api
       .addDynamoDbDataSource("CreatePostDataSource", postsTable)
@@ -495,35 +440,6 @@ export function response(ctx) {
       }
     );
 
-    // Create pipeline resolvers for subscriptions
-    const formatSubscriptionFunction = new appsync.AppsyncFunction(
-      this,
-      "FormatSubscriptionInput",
-      {
-        api: this.api,
-        dataSource: noneDs,
-        name: "formatSubscriptionInput",
-        code: appsync.Code.fromAsset(
-          "./resolvers/subscriptions/formatSubscriptionInput.js"
-        ),
-        runtime: appsync.FunctionRuntime.JS_1_0_0,
-      }
-    );
-
-    const createSubscriptionFunction = new appsync.AppsyncFunction(
-      this,
-      "CreateSubscriptionFunction",
-      {
-        api: this.api,
-        dataSource: dbDataSource,
-        name: "createSubscriptionFunction",
-        code: appsync.Code.fromAsset(
-          "./resolvers/subscriptions/createSubscription.js"
-        ),
-        runtime: appsync.FunctionRuntime.JS_1_0_0,
-      }
-    );
-
     // Create prompt template resolvers
     this.api.createResolver("CreatePromptTemplate", {
       typeName: "Mutation",
@@ -533,55 +449,6 @@ export function response(ctx) {
         formatPromptTemplateFunction,
         createPromptTemplateFunction,
       ],
-      runtime: appsync.FunctionRuntime.JS_1_0_0,
-    });
-
-    // Create subscription resolvers
-    this.api.createResolver("CreateSubscription", {
-      typeName: "Mutation",
-      code: appsync.Code.fromAsset("./resolvers/pipeline/default.js"),
-      fieldName: "createSubscription",
-      pipelineConfig: [formatSubscriptionFunction, createSubscriptionFunction],
-      runtime: appsync.FunctionRuntime.JS_1_0_0,
-    });
-
-    this.api.createResolver("GetSubscription", {
-      typeName: "Query",
-      fieldName: "getSubscription",
-      dataSource: dbDataSource,
-      code: appsync.Code.fromAsset(
-        "./resolvers/subscriptions/getSubscription.js"
-      ),
-      runtime: appsync.FunctionRuntime.JS_1_0_0,
-    });
-
-    this.api.createResolver("GetUserSubscription", {
-      typeName: "Query",
-      fieldName: "getUserSubscription",
-      dataSource: dbDataSource,
-      code: appsync.Code.fromAsset(
-        "./resolvers/subscriptions/getUserSubscription.js"
-      ),
-      runtime: appsync.FunctionRuntime.JS_1_0_0,
-    });
-
-    this.api.createResolver("GetAllSubscriptions", {
-      typeName: "Query",
-      fieldName: "getAllSubscriptions",
-      dataSource: dbDataSource,
-      code: appsync.Code.fromAsset(
-        "./resolvers/subscriptions/getAllSubscriptions.js"
-      ),
-      runtime: appsync.FunctionRuntime.JS_1_0_0,
-    });
-
-    this.api.createResolver("CreateUserSubscription", {
-      typeName: "Mutation",
-      fieldName: "createUserSubscription",
-      dataSource: dbDataSource,
-      code: appsync.Code.fromAsset(
-        "./resolvers/subscriptions/createUserSubscription.js"
-      ),
       runtime: appsync.FunctionRuntime.JS_1_0_0,
     });
 
@@ -633,31 +500,13 @@ export function response(ctx) {
       runtime: appsync.FunctionRuntime.JS_1_0_0,
     });
 
-    // Add data source and resolver for the text-to-video workflow
-    this.api
-      .addLambdaDataSource(
-        "invokeTextToVideoLambdaDatasource",
-        invokeTextToVideoFunction
-      )
-      .createResolver("invokeTextToVideoResolver", {
-        typeName: "Mutation",
-        fieldName: "generateTextToVideo",
-        code: appsync.Code.fromAsset(
-          path.join(__dirname, "../../resolvers/generateTextToVideo.js")
-        ),
-        runtime: appsync.FunctionRuntime.JS_1_0_0,
-      });
-
     // Apply common tags
-    [
-      this.api,
-      this.schedulePostsFunction,
-      this.sendPostsFunction,
-      invokeTextToVideoFunction,
-    ].forEach((resource) => {
-      Object.entries(COMMON_TAGS).forEach(([key, value]) => {
-        cdk.Tags.of(resource).add(key, value);
-      });
-    });
+    [this.api, this.schedulePostsFunction, this.sendPostsFunction].forEach(
+      (resource) => {
+        Object.entries(COMMON_TAGS).forEach(([key, value]) => {
+          cdk.Tags.of(resource).add(key, value);
+        });
+      }
+    );
   }
 }

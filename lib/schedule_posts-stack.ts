@@ -4,12 +4,12 @@ import * as scheduler from "aws-cdk-lib/aws-scheduler";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { COMMON_TAGS } from "./constants";
 import { DatabaseConstruct } from "./constructs/database-construct";
-import { KnowledgeBaseConstruct } from "./constructs/knowledge-base-construct";
+
 import { AuthConstruct } from "./constructs/auth-construct";
 import { WorkflowConstruct } from "./constructs/workflow-construct";
 import { EventsConstruct } from "./constructs/events-construct";
 import { AppSyncConstruct } from "./constructs/appsync-construct";
-import { MediaProcessingConstruct } from "./constructs/media-processing-construct";
+
 import { WafConstruct } from "./constructs/waf-construct";
 
 /**
@@ -51,22 +51,6 @@ export class SchedulePostsStack extends cdk.Stack {
       userPoolName: "ScheduledPostsUserPool",
     });
 
-    // Create the knowledge base construct
-    const knowledgeBaseConstruct = new KnowledgeBaseConstruct(
-      this,
-      "KnowledgeBaseConstruct",
-      {
-        knowledgeBaseName: "ScheduledPostsKnowledgeBase",
-        bucketName: "scheduled-posts-knowledge-base-data",
-        pineconeConnectionString:
-          process.env.PINECONE_CONNECTION_STRING ||
-          "https://scheduled-post-index-pbfqwcb.svc.aped-4627-b74a.pinecone.io", // Should be in environment variables
-        pineconeCredentialsSecretArn:
-          process.env.PINECONE_CREDENTIALS_SECRET_ARN ||
-          "arn:aws:secretsmanager:us-east-1:132260253285:secret:pinecone-j4JvqP", // Should be in environment variables
-      }
-    );
-
     // Create the EventBridge event bus
     const eventBus = new cdk.aws_events.EventBus(this, "EventBus", {
       eventBusName: "ScheduledPostsEventBus",
@@ -77,59 +61,21 @@ export class SchedulePostsStack extends cdk.Stack {
       cdk.Tags.of(eventBus).add(key, value);
     });
 
-    // Create the workflow construct
     const workflowConstruct = new WorkflowConstruct(this, "WorkflowConstruct", {
       eventBus: eventBus,
-      knowledgeBase: knowledgeBaseConstruct.knowledgeBase,
-      postsTable: databaseConstruct.postsTable,
     });
 
-    // Create the media processing construct
-    const mediaProcessingConstruct = new MediaProcessingConstruct(
-      this,
-      "MediaProcessingConstruct",
-      {
-        postMediaBucket: workflowConstruct.mediaBucket,
-        postsTable: databaseConstruct.postsTable,
-        knowledgeBase: knowledgeBaseConstruct.knowledgeBase,
-        extractTextHandlerFunction:
-          workflowConstruct.extractTextHandlerFunction,
-        extractTextStateMachine:
-          workflowConstruct.extractTextFromFileStateMachine,
-        transcribeMediaStateMachine:
-          workflowConstruct.transcribeMediaStateMachine,
-      }
-    );
-
-    // Set up the state machine ARN for the queue processor function
-    mediaProcessingConstruct.queueProcessorFunction.addEnvironment(
-      "STATE_MACHINE_ARN",
-      workflowConstruct.textToVideoStateMachine.stateMachineArn
-    );
-
-    // Grant the queue processor function permission to start the state machines
-    workflowConstruct.textToVideoStateMachine.grantStartExecution(
-      mediaProcessingConstruct.queueProcessorFunction
-    );
-    workflowConstruct.extractTextFromFileStateMachine.grantStartExecution(
-      mediaProcessingConstruct.queueProcessorFunction
-    );
-    workflowConstruct.transcribeMediaStateMachine.grantStartExecution(
-      mediaProcessingConstruct.queueProcessorFunction
-    );
-
+    // Grant the queue processor function permission to start
     // Create the AppSync construct
     const appSyncConstruct = new AppSyncConstruct(this, "AppSyncConstruct", {
       postsTable: databaseConstruct.postsTable,
       scheduledRole: scheduledRole,
-      knowledgeBase: knowledgeBaseConstruct.knowledgeBase,
-      agent: knowledgeBaseConstruct.agent,
-      invokeAgentLambda: knowledgeBaseConstruct.invokeAgentFunction,
-      agentAlias: knowledgeBaseConstruct.agent_alias,
+
       postScheduledGroupName: postScheduleGroup.scheduleGroupName,
       generatePostAgentFunction: workflowConstruct.generatePostAgentFunction,
       startWorkflowFunction: workflowConstruct.startWorkflowFunction,
-      invokeTextToVideoFunction: workflowConstruct.invokeTextToVideoFunction,
+      invokeAgentLambda: workflowConstruct.generatePostAgentFunction,
+
       eventBus: eventBus,
       userPool: authConstruct.userPool,
     });
